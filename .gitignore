@@ -1,0 +1,7 @@
+/pics
+node_modules
+dist
+playwright-report
+test-results
+qa-*.png
+.DS_Store
