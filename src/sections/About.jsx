@@ -1,4 +1,4 @@
-export function About() {
+export function About({ onAnomaly }) {
   return (
     <section id="about" className="about-section section-chamber" aria-labelledby="about-title">
       <div className="section-number mono">03 // SUBJECT NOTES</div>
@@ -34,13 +34,10 @@ export function About() {
       <button
         className="anomaly-trigger mono"
         type="button"
-        onClick={() => document.documentElement.classList.toggle('anomaly-open')}
+        onClick={onAnomaly}
       >
         OPEN ANOMALY FILE
       </button>
-      <div className="anomaly-image" aria-hidden="true">
-        <img src="/images/anomaly.webp" alt="" />
-      </div>
     </section>
   );
 }

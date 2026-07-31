@@ -4,4 +4,5 @@ dist
 playwright-report
 test-results
 qa-*.png
+*.zip
 .DS_Store

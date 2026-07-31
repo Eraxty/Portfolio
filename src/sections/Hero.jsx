@@ -1,7 +1,7 @@
 import { ArrowDown } from 'lucide-react';
 import { PortalGate } from '../systems/portals/PortalGate.jsx';
 
-export function Hero({ aiMessage, portalUses }) {
+export function Hero({ aiMessage }) {
   return (
     <section id="index" className="hero-section section-chamber" aria-labelledby="hero-title">
       <div className="hero-meta mono">
@@ -24,14 +24,8 @@ export function Hero({ aiMessage, portalUses }) {
       <p className="hero-copy">
         I make games, experiments and things computers were probably not expecting to run.
       </p>
-      <PortalGate id="orange" color="orange" className="hero-portal">
-        <span>ENTRY</span>
-        <em>{String(portalUses).padStart(2, '0')}</em>
-      </PortalGate>
-      <PortalGate id="blue" color="blue" className="hero-portal-exit">
-        <span>EXIT</span>
-        <em>LIVE</em>
-      </PortalGate>
+      <PortalGate id="orange" color="orange" target="#work" className="hero-portal" />
+      <PortalGate id="blue" color="blue" target="#contact" className="hero-portal-exit" />
       <a className="scroll-cue" href="#work" aria-label="Scroll to work">
         <ArrowDown size={18} />
         <span>DESCEND</span>

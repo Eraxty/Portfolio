@@ -19,6 +19,7 @@ export default [
         Audio: 'readonly',
         CustomEvent: 'readonly',
         ResizeObserver: 'readonly',
+        setTimeout: 'readonly',
       },
       parserOptions: {
         ecmaFeatures: { jsx: true },

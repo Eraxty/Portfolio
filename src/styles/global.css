@@ -15,7 +15,6 @@
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--black);
   color: var(--paper);
-  scroll-behavior: smooth;
 }
 
 * {
@@ -94,13 +93,20 @@ img {
   position: relative;
   min-height: 100vh;
   padding: clamp(5rem, 8vw, 8rem) clamp(1.2rem, 4vw, 4.5rem);
+  pointer-events: none;
+  overflow: clip;
+}
+
+.section-chamber :is(a, button, input, textarea, select, [role="button"]),
+.project-detail {
+  pointer-events: auto;
 }
 
 .chamber-canvas {
   position: fixed;
   inset: 0;
-  z-index: 0;
-  pointer-events: none;
+  z-index: 2;
+  pointer-events: auto;
   opacity: 0.98;
 }
 
@@ -253,10 +259,11 @@ img {
 
 .hero-section h1 {
   margin: 0;
-  font-size: clamp(4.5rem, 19vw, 19.5rem);
-  line-height: 0.78;
+  font-size: clamp(4rem, min(14.5vw, 28vh), 16rem);
+  line-height: 0.76;
   letter-spacing: 0;
   text-transform: uppercase;
+  max-width: 100%;
 }
 
 .hero-section h1 span {
@@ -264,7 +271,7 @@ img {
 }
 
 .hero-section h1 span + span {
-  transform: translateX(clamp(0rem, 11vw, 11rem));
+  transform: translateX(clamp(0rem, 5.5vw, 6rem));
   color: transparent;
   -webkit-text-stroke: clamp(1px, 0.16vw, 2px) rgba(238, 232, 217, 0.9);
 }
@@ -324,26 +331,29 @@ img {
 
 .portal-gate {
   --portal-color: var(--orange);
+  --proximity: 0;
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
   position: absolute;
   z-index: 8;
   width: clamp(8rem, 14vw, 13rem);
   aspect-ratio: 0.62;
   border-radius: 50%;
+  transform: perspective(700px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) scale(calc(1 + var(--proximity) * 0.045));
   transform-style: preserve-3d;
   isolation: isolate;
-  transition: transform 260ms var(--ease-out), filter 260ms var(--ease-out);
-  cursor: none;
+  transition: transform 380ms var(--ease-out), filter 380ms var(--ease-out);
+  filter: brightness(calc(1 + var(--proximity) * 0.36)) saturate(calc(1 + var(--proximity) * 0.22));
+  overflow: hidden;
+  will-change: transform, filter;
 }
 
 .portal-gate:hover {
-  transform: scale(1.04) rotateX(8deg) rotateY(-6deg);
-  filter: brightness(1.12);
+  filter: brightness(1.2) saturate(1.1);
 }
 
-.portal-gate.is-pulsing .portal-shell,
-.portal-gate.is-pulsing .portal-rim {
-  animation-duration: 480ms;
-  filter: brightness(1.45) saturate(1.2);
+.portal-gate.is-pulsing {
+  filter: brightness(1.5) saturate(1.2);
 }
 
 .portal-flash {
@@ -368,7 +378,7 @@ img {
 
 .portal-flash::before {
   content: "";
-  width: 20vmax;
+  width: min(34rem, 36vmax);
   aspect-ratio: 1;
   border: 1px solid var(--flash-color);
   border-radius: 50%;
@@ -401,82 +411,89 @@ img {
 }
 
 .hero-portal {
-  left: clamp(1rem, 12vw, 12rem);
-  bottom: 11vh;
-  transform: rotate(-10deg) perspective(500px) rotateY(20deg);
+  left: clamp(0.5rem, 2vw, 2rem);
+  bottom: 1vh;
+  rotate: -8deg;
 }
 
 .hero-portal-exit {
-  right: clamp(1rem, 12vw, 13rem);
-  top: 22vh;
-  transform: rotate(12deg) perspective(500px) rotateY(-18deg);
+  right: clamp(0.5rem, 2vw, 2rem);
+  top: 6vh;
+  rotate: 10deg;
 }
 
-.portal-shell,
-.portal-rim,
-.portal-sparks,
-.portal-depth {
+.section-portal {
+  width: clamp(6.8rem, 11vw, 10rem);
+  opacity: 0.78;
+}
+
+.work-portal {
+  right: clamp(1rem, 4vw, 4rem);
+  bottom: clamp(2rem, 7vw, 6rem);
+}
+
+.contact-portal {
+  left: clamp(1rem, 5vw, 5rem);
+  bottom: clamp(2rem, 9vw, 8rem);
+}
+
+.portal-image {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   border-radius: 50%;
+  opacity: 0.92;
+  transform: scale(calc(1.02 + var(--proximity) * 0.08));
+  transition: transform 420ms var(--ease-out), opacity 420ms var(--ease-out);
 }
 
-.portal-shell {
-  background:
-    radial-gradient(ellipse at 50% 48%, rgba(255, 255, 255, 0.16), transparent 22%),
-    radial-gradient(ellipse at center, color-mix(in srgb, var(--portal-color) 24%, transparent), transparent 54%),
-    repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--portal-color) 70%, transparent) 0 5deg, transparent 6deg 13deg);
-  filter: blur(1px);
-  animation: portal-spin 3.3s linear infinite;
-}
-
-.portal-depth {
-  inset: 11%;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  color: rgba(238, 232, 217, 0.86);
-  background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 40%),
-    repeating-linear-gradient(90deg, rgba(238, 232, 217, 0.08) 0 1px, transparent 1px 11px),
-    radial-gradient(ellipse at center, rgba(5, 5, 4, 0.12), rgba(5, 5, 4, 0.92) 66%);
-  box-shadow: inset 0 0 2rem color-mix(in srgb, var(--portal-color) 46%, transparent);
-}
-
-.portal-depth span,
-.portal-depth em {
-  position: relative;
-  z-index: 2;
-  font: 0.65rem/1 "IBM Plex Mono", monospace;
-}
-
-.portal-depth em {
+.portal-gate::before,
+.portal-gate::after {
+  content: "";
   position: absolute;
-  bottom: 29%;
-  font-style: normal;
-  color: var(--portal-color);
+  inset: 9% 5%;
+  z-index: -1;
+  border: 1px solid color-mix(in srgb, var(--portal-color) 76%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 calc(1.4rem + var(--proximity) * 1.2rem) color-mix(in srgb, var(--portal-color) 64%, transparent);
+  opacity: calc(0.42 + var(--proximity) * 0.34);
 }
 
-.portal-rim {
-  box-shadow:
-    0 0 1.4rem var(--portal-color),
-    0 0 4rem color-mix(in srgb, var(--portal-color) 42%, transparent),
-    inset 0 0 1.2rem color-mix(in srgb, var(--portal-color) 52%, transparent);
-  border: 1px solid color-mix(in srgb, var(--portal-color) 76%, white 14%);
+.portal-gate::after {
+  inset: 14% 13%;
+  opacity: calc(0.18 + var(--proximity) * 0.3);
+  transform: rotate(24deg);
 }
 
-.portal-sparks {
-  inset: -11%;
-  background: conic-gradient(from 22deg, transparent, color-mix(in srgb, var(--portal-color) 58%, transparent), transparent 19%);
-  filter: blur(9px);
-  opacity: 0.72;
-  animation: portal-spin 5s linear reverse infinite;
+.portal-gate.is-pulsing {
+  animation: portal-pulse 480ms var(--ease-out);
 }
 
-@keyframes portal-spin {
-  to {
-    rotate: 360deg;
-  }
+.portal-gate.is-entering .portal-image {
+  animation: portal-enter 700ms var(--ease-out);
+}
+
+.portal-gate.is-exiting .portal-image {
+  animation: portal-exit 700ms var(--ease-out);
+}
+
+@keyframes portal-pulse {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.6) saturate(1.3); }
+  100% { filter: brightness(1); }
+}
+
+@keyframes portal-enter {
+  0% { transform: scale(0.55) rotate(-16deg); opacity: 0.15; }
+  55% { transform: scale(1.16) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1.02); opacity: 0.92; }
+}
+
+@keyframes portal-exit {
+  0% { transform: scale(1.02); opacity: 0.92; }
+  100% { transform: scale(1.42) rotate(18deg); opacity: 0.18; }
 }
 
 .custom-cursor {
@@ -493,29 +510,53 @@ img {
 
 .custom-cursor span {
   position: absolute;
-  left: -0.42rem;
-  top: -0.42rem;
-  width: 0.84rem;
-  height: 0.84rem;
-  border: 1px solid rgba(238, 232, 217, 0.86);
-  background: rgba(238, 232, 217, 0.26);
-  transform: scale(calc(1 + var(--speed, 0) * 0.7));
-  box-shadow: 0 0 1.2rem rgba(238, 232, 217, 0.28);
+  left: -0.34rem;
+  top: -0.34rem;
+  width: 0.68rem;
+  height: 0.68rem;
+  border: 1px solid rgba(238, 232, 217, 0.92);
+  border-radius: 50%;
+  background:
+    linear-gradient(rgba(238, 232, 217, 0.82), rgba(238, 232, 217, 0.82)) 50% 0 / 1px 0.18rem no-repeat,
+    linear-gradient(rgba(238, 232, 217, 0.82), rgba(238, 232, 217, 0.82)) 50% 100% / 1px 0.18rem no-repeat,
+    linear-gradient(90deg, rgba(238, 232, 217, 0.82), rgba(238, 232, 217, 0.82)) 0 50% / 0.18rem 1px no-repeat,
+    linear-gradient(90deg, rgba(238, 232, 217, 0.82), rgba(238, 232, 217, 0.82)) 100% 50% / 0.18rem 1px no-repeat;
+  transform: scale(calc(var(--cursor-scale, 1) * (1 + var(--speed, 0) * 0.22)));
+  box-shadow: 0 0 1rem rgba(238, 232, 217, 0.18);
 }
 
+.custom-cursor::after {
+  content: "";
+  position: absolute;
+  left: -0.11rem;
+  top: -0.11rem;
+  width: 0.22rem;
+  height: 0.22rem;
+  border-radius: 50%;
+  background: rgba(238, 232, 217, 0.9);
+  transform: scale(var(--cursor-scale, 1));
+}
+
+.custom-cursor[data-state="orange"] span,
 .cursor-orange span {
   border-color: var(--orange);
-  box-shadow: 0 0 1.6rem var(--orange);
+  box-shadow: 0 0 1.3rem color-mix(in srgb, var(--orange) 74%, transparent);
 }
 
+.custom-cursor[data-state="blue"] span,
 .cursor-blue span {
   border-color: var(--blue);
-  box-shadow: 0 0 1.6rem var(--blue);
+  box-shadow: 0 0 1.3rem color-mix(in srgb, var(--blue) 74%, transparent);
+}
+
+.custom-cursor[data-state="transition"] span {
+  filter: blur(0.5px);
+  opacity: 0.82;
 }
 
 .has-custom-cursor,
 .has-custom-cursor * {
-  cursor: none !important;
+  cursor: auto;
 }
 
 .section-number {
@@ -565,7 +606,7 @@ img {
 .project-specimen button {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(4rem, 7vw) minmax(12rem, 1.4fr) minmax(8rem, 0.7fr) minmax(18rem, 1.6fr) minmax(11rem, 0.8fr);
+  grid-template-columns: minmax(4rem, 7vw) minmax(12rem, 1.25fr) minmax(8rem, 0.65fr) minmax(16rem, 1.45fr) minmax(10rem, 0.75fr);
   gap: 1rem;
   width: 100%;
   min-height: 7.3rem;
@@ -606,6 +647,7 @@ img {
 .specimen-summary {
   color: rgba(238, 232, 217, 0.74);
   line-height: 1.2;
+  max-width: 34rem;
 }
 
 .specimen-slab {
@@ -819,23 +861,100 @@ img {
   font-size: 0.75rem;
 }
 
-.anomaly-image {
+.anomaly-sequence {
   position: fixed;
-  z-index: 30;
-  right: 8vw;
-  top: 12vh;
-  width: min(26rem, 70vw);
-  aspect-ratio: 691 / 922;
+  inset: 0;
+  z-index: 65;
   pointer-events: none;
-  transform: translateY(2rem) rotate(5deg) scale(0.94);
+  display: grid;
+  place-items: center;
   opacity: 0;
-  transition: opacity 280ms var(--ease-out), transform 280ms var(--ease-out);
-  mix-blend-mode: hard-light;
 }
 
-.anomaly-open .anomaly-image {
-  opacity: 0.82;
-  transform: translateY(0) rotate(-3deg) scale(1);
+.anomaly-sequence.is-active {
+  animation: anomaly-shell 3.3s var(--ease-out);
+}
+
+.anomaly-frame {
+  position: relative;
+  width: min(24rem, 68vw);
+  aspect-ratio: 691 / 922;
+  overflow: hidden;
+  transform: perspective(900px) rotateX(8deg) rotateY(-18deg) skewY(-1deg);
+  clip-path: polygon(9% 0, 96% 5%, 89% 100%, 0 92%);
+  filter: contrast(1.25) grayscale(0.6);
+  box-shadow: 0 0 0 1px rgba(241, 115, 34, 0.35), 0 0 4rem rgba(43, 140, 255, 0.18);
+}
+
+.anomaly-frame::before,
+.anomaly-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    repeating-linear-gradient(0deg, rgba(238, 232, 217, 0.2) 0 1px, transparent 1px 8px),
+    linear-gradient(90deg, rgba(43, 140, 255, 0.22), transparent 42%, rgba(241, 115, 34, 0.18));
+  mix-blend-mode: screen;
+  animation: anomaly-scan 420ms steps(4) infinite;
+}
+
+.anomaly-frame::after {
+  inset: 0 -8%;
+  background: linear-gradient(90deg, transparent, rgba(238, 232, 217, 0.18), transparent);
+  animation-duration: 190ms;
+}
+
+.anomaly-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.08);
+}
+
+.anomaly-frame span {
+  position: absolute;
+  left: 0.8rem;
+  bottom: 0.8rem;
+  z-index: 3;
+  color: var(--paper);
+  font-size: 0.65rem;
+}
+
+@keyframes anomaly-shell {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  12%,
+  82% {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+  36% {
+    transform: translateX(-1.2rem) scale(1.02);
+  }
+  39% {
+    transform: translateX(1rem) scale(0.99);
+  }
+}
+
+@keyframes anomaly-scan {
+  50% {
+    transform: translateX(1.4rem);
+  }
+}
+
+@keyframes shell-glitch {
+  0%, 100% { filter: hue-rotate(0deg) brightness(1); }
+  25% { filter: hue-rotate(12deg) brightness(1.04); }
+  50% { filter: hue-rotate(-8deg) brightness(0.97); }
+  75% { filter: hue-rotate(5deg) brightness(1.02); }
+}
+
+.site-shell.anomaly-active {
+  animation: shell-glitch 0.4s infinite;
 }
 
 .contact-section {
@@ -870,6 +989,12 @@ img {
   border-top: 1px solid var(--line);
   color: rgba(238, 232, 217, 0.82);
   overflow-wrap: anywhere;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.contact-links a:hover {
+  color: var(--paper);
+  transform: translateX(0.25rem);
 }
 
 .contact-links a:last-child {
@@ -962,8 +1087,9 @@ img {
   }
 
   .project-specimen button {
-    grid-template-columns: minmax(3rem, 4rem) 1fr;
+    grid-template-columns: minmax(3rem, 4rem) minmax(0, 1fr);
     min-height: 10rem;
+    padding-right: 1rem;
   }
 
   .specimen-label,
@@ -975,6 +1101,7 @@ img {
   .about-layout,
   .final-grid {
     grid-template-columns: 1fr;
+    align-items: start;
   }
 
   .photo-system {
@@ -983,6 +1110,10 @@ img {
 
   .repo-conveyor div {
     grid-template-columns: 1fr;
+  }
+
+  .section-portal {
+    opacity: 0.5;
   }
 }
 
@@ -1013,16 +1144,16 @@ img {
   }
 
   .portal-gate {
-    width: 6.2rem;
+    width: 5.6rem;
   }
 
   .hero-portal {
-    left: 0.7rem;
-    bottom: 18vh;
+    left: -0.7rem;
+    bottom: 31vh;
   }
 
   .hero-portal-exit {
-    right: 0.7rem;
+    right: 0.5rem;
     top: 15vh;
   }
 
@@ -1061,6 +1192,36 @@ img {
 
   .contact-links a {
     font-size: 0.9rem;
+  }
+
+  .hero-section h1 {
+    font-size: clamp(3.45rem, 16vw, 6.8rem);
+    line-height: 0.82;
+  }
+
+  .hero-copy {
+    max-width: 22rem;
+    margin-top: 1.1rem;
+    font-size: clamp(1rem, 6vw, 1.35rem);
+  }
+
+  .section-heading h2,
+  .about-type h2,
+  .contact-section h2 {
+    font-size: clamp(2.25rem, 15vw, 5.4rem);
+  }
+
+  .repo-conveyor a {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .repo-conveyor small {
+    display: none;
+  }
+
+  .work-portal,
+  .contact-portal {
+    display: none;
   }
 
   .audio-toggle span {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { archiveRepos, featuredProjects, stackIndex } from '../data/projects.js';
 import { ProjectDetail } from '../components/ProjectDetail.jsx';
+import { PortalGate } from '../systems/portals/PortalGate.jsx';
 
 export function Projects() {
   const [selected, setSelected] = useState(null);
@@ -55,6 +56,7 @@ export function Projects() {
           ))}
         </div>
       </div>
+      <PortalGate id="work-blue" color="blue" target="#about" className="section-portal work-portal" />
       <ProjectDetail project={selected} onClose={() => setSelected(null)} />
     </section>
   );

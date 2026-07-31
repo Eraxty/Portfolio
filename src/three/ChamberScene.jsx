@@ -1,152 +1,225 @@
-import { Float, MeshDistortMaterial, PerspectiveCamera, Text } from '@react-three/drei';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Suspense, useMemo, useRef } from 'react';
+import { PerspectiveCamera, useFBX, useTexture } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { cursorStore } from '../systems/cursor/cursorStore.js';
 
-function Architecture() {
-  const group = useRef();
-  const planes = useMemo(() => {
-    return Array.from({ length: 18 }, (_, i) => ({
-      x: (i % 3 - 1) * 5.8,
-      y: -1.2 - i * 0.75,
-      z: -4 - (i % 6) * 1.2,
-      r: (i % 2 ? 0.16 : -0.12) + i * 0.03,
-      w: 2.2 + (i % 4) * 0.8,
-      h: 0.1 + (i % 3) * 0.22,
-    }));
-  }, []);
+const orange = '#f17322';
+const blue = '#2b8cff';
+const paper = '#eee8d9';
 
-  useFrame(({ clock, pointer }) => {
-    group.current.rotation.y = pointer.x * 0.035;
-    group.current.position.x = pointer.x * 0.2;
-    group.current.position.y = pointer.y * 0.08 + Math.sin(clock.elapsedTime * 0.2) * 0.05;
+function damp(current, target, lambda, delta) {
+  return THREE.MathUtils.damp(current, target, lambda, delta);
+}
+
+function getScrollProgress() {
+  return Math.min(1, window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight));
+}
+
+function fitToSize(object, targetHeight) {
+  const box = new THREE.Box3().setFromObject(object);
+  const size = box.getSize(new THREE.Vector3());
+  const scale = targetHeight / Math.max(size.x, size.y, size.z);
+  object.scale.setScalar(scale);
+  const newBox = new THREE.Box3().setFromObject(object);
+  const newCenter = newBox.getCenter(new THREE.Vector3());
+  object.position.sub(newCenter);
+}
+
+function GLaDOSModel() {
+  const fbx = useFBX('/models/glados/source/GLaDOS.fbx');
+  const model = useMemo(() => clone(fbx), [fbx]);
+  const ref = useRef();
+
+  useEffect(() => {
+    if (!model) return;
+    fitToSize(model, 3.4);
+    model.traverse((child) => {
+      if (!child.isMesh) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+      if (child.material) {
+        const hasMaterialArray = Array.isArray(child.material);
+        const materials = hasMaterialArray ? child.material : [child.material];
+        const nextMaterials = materials.map((material) => {
+          const nextMaterial = material.clone();
+          nextMaterial.roughness = Math.max(nextMaterial.roughness || 0.4, 0.46);
+          nextMaterial.metalness = Math.min(nextMaterial.metalness || 0.2, 0.55);
+          return nextMaterial;
+        });
+        child.material = hasMaterialArray ? nextMaterials : nextMaterials[0];
+      }
+    });
+  }, [model]);
+
+  useFrame(({ clock }, delta) => {
+    if (!ref.current) return;
+    const portalKick = cursorStore.portalEvent ? Math.max(0, 1 - (performance.now() - cursorStore.portalEvent.at) / 900) : 0;
+    ref.current.rotation.y = damp(ref.current.rotation.y, cursorStore.world.x * 0.24 + portalKick * 0.18, 3, delta);
+    ref.current.position.y = Math.sin(clock.elapsedTime * 0.15) * 0.08 + portalKick * 0.12;
   });
 
   return (
-    <group ref={group}>
-      <mesh position={[0, -3.4, -7]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[28, 46, 1, 1]} />
-        <meshStandardMaterial color="#10100e" roughness={0.92} metalness={0.15} />
+    <group ref={ref} position={[0.5, 3.5, -5]}>
+      <primitive object={model} />
+    </group>
+  );
+}
+
+function WheatleyModel() {
+  const fbx = useFBX('/models/wheatley/source/personality_sphere_model.fbx');
+  const model = useMemo(() => clone(fbx), [fbx]);
+  const ref = useRef();
+
+  useEffect(() => {
+    if (!model) return;
+    fitToSize(model, 0.75);
+    model.traverse((child) => {
+      if (!child.isMesh) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+  }, [model]);
+
+  useFrame(({ clock }, delta) => {
+    if (!ref.current) return;
+    const portalKick = cursorStore.portalEvent ? Math.max(0, 1 - (performance.now() - cursorStore.portalEvent.at) / 760) : 0;
+    ref.current.rotation.y += delta * (0.6 + portalKick * 3.2);
+    ref.current.rotation.x = Math.sin(clock.elapsedTime * 0.7) * 0.2;
+    ref.current.position.x = THREE.MathUtils.lerp(ref.current.position.x, cursorStore.world.x * 1.5, delta * 1.5);
+    ref.current.position.y = THREE.MathUtils.lerp(ref.current.position.y, 0.5 + cursorStore.world.y * 0.8 + portalKick * 0.25, delta * 1.5);
+  });
+
+  return (
+    <group ref={ref} position={[0, 0.5, -3]}>
+      <primitive object={model} />
+      <pointLight color={blue} intensity={0.6} distance={2.5} decay={2} />
+    </group>
+  );
+}
+
+function CompanionCubeModel() {
+  const fbx = useFBX('/models/companion-cube/source/CCP2.fbx');
+  const model = useMemo(() => clone(fbx), [fbx]);
+  const [albedo, normal, roughness, metallic] = useTexture([
+    '/models/companion-cube/textures/CCP2_AlbedoTransparency.png',
+    '/models/companion-cube/textures/CCP2_Normal.png',
+    '/models/companion-cube/textures/CCP2_Roughness.png',
+    '/models/companion-cube/textures/CCP2_MetallicSmoothness.png',
+  ]);
+  const ref = useRef();
+
+  useEffect(() => {
+    if (!model) return;
+    fitToSize(model, 0.95);
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.material = new THREE.MeshStandardMaterial({
+          map: albedo,
+          normalMap: normal,
+          roughnessMap: roughness,
+          metalnessMap: metallic,
+          roughness: 0.7,
+          metalness: 0.3,
+        });
+      }
+    });
+  }, [model, albedo, normal, roughness, metallic]);
+
+  useFrame(({ clock }, delta) => {
+    if (!ref.current) return;
+    const portalKick = cursorStore.portalEvent ? Math.max(0, 1 - (performance.now() - cursorStore.portalEvent.at) / 800) : 0;
+    ref.current.rotation.y += delta * (0.2 + portalKick * 2);
+    ref.current.rotation.x += delta * 0.08;
+    ref.current.position.y = Math.sin(clock.elapsedTime * 0.45) * 0.08 - portalKick * 0.16;
+  });
+
+  return (
+    <group ref={ref} position={[3.5, -2, -3.5]}>
+      <primitive object={model} />
+    </group>
+  );
+}
+
+function ChamberGeometry() {
+  const panelMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: '#161612',
+    roughness: 0.82,
+    metalness: 0.18,
+  }), []);
+  const lineMaterial = useMemo(() => new THREE.MeshBasicMaterial({
+    color: paper,
+    transparent: true,
+    opacity: 0.13,
+  }), []);
+
+  return (
+    <group position={[0, -2.85, -4.2]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow material={panelMaterial}>
+        <planeGeometry args={[12, 16, 1, 1]} />
       </mesh>
-      {planes.map((plane, index) => (
-        <mesh key={index} position={[plane.x, plane.y, plane.z]} rotation={[0.03, plane.r, 0]} castShadow>
-          <boxGeometry args={[plane.w, plane.h, 4.4]} />
-          <meshStandardMaterial color={index % 4 === 0 ? '#252522' : '#151513'} roughness={0.86} metalness={0.42} />
+      {Array.from({ length: 7 }, (_, index) => (
+        <mesh key={`floor-x-${index}`} position={[-6 + index * 2, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]} material={lineMaterial}>
+          <planeGeometry args={[0.012, 16]} />
         </mesh>
       ))}
-      <mesh position={[-4.2, 0.1, -5.6]} rotation={[0.05, 0.55, -0.1]}>
-        <torusGeometry args={[1.05, 0.035, 16, 96]} />
-        <meshBasicMaterial color="#f17322" transparent opacity={0.58} />
-      </mesh>
-      <mesh position={[4.1, -1.5, -5.8]} rotation={[0.1, -0.48, 0.18]}>
-        <torusGeometry args={[1.05, 0.035, 16, 96]} />
-        <meshBasicMaterial color="#2b8cff" transparent opacity={0.58} />
-      </mesh>
-    </group>
-  );
-}
-
-function ProjectArtifacts() {
-  const group = useRef();
-  useFrame(({ clock }) => {
-    group.current.rotation.y = Math.sin(clock.elapsedTime * 0.18) * 0.08;
-  });
-  return (
-    <group ref={group} position={[0, -5.2, -4.4]}>
-      {[-2.8, -1.4, 0, 1.4, 2.8].map((x, index) => (
-        <Float key={x} speed={1.2 + index * 0.1} floatIntensity={0.25} rotationIntensity={0.2}>
-          <mesh position={[x, index % 2 ? 0.3 : -0.2, -index * 0.25]} rotation={[0.3, index * 0.4, 0.1]}>
-            <boxGeometry args={[0.9, 0.55, 0.12]} />
-            <meshStandardMaterial color={index % 2 ? '#1d1d1a' : '#2b2a25'} roughness={0.55} metalness={0.72} />
-          </mesh>
-        </Float>
-      ))}
-    </group>
-  );
-}
-
-function Overseer() {
-  const eye = useRef();
-  useFrame(({ pointer, clock }) => {
-    eye.current.rotation.y = pointer.x * 0.22;
-    eye.current.rotation.x = -pointer.y * 0.12 + Math.sin(clock.elapsedTime * 0.4) * 0.03;
-  });
-  return (
-    <group position={[3.25, -8.2, -4.8]} ref={eye}>
-      <mesh>
-        <sphereGeometry args={[0.52, 32, 16]} />
-        <meshStandardMaterial color="#171716" metalness={0.8} roughness={0.32} />
-      </mesh>
-      <mesh position={[0, 0, 0.48]}>
-        <sphereGeometry args={[0.12, 24, 12]} />
-        <meshBasicMaterial color="#f4eee2" />
-      </mesh>
-      <mesh position={[0, 0.78, -0.08]} rotation={[0.4, 0, 0]}>
-        <cylinderGeometry args={[0.025, 0.025, 2.2, 12]} />
-        <meshStandardMaterial color="#3b3932" metalness={0.8} />
-      </mesh>
-      <Text
-        position={[-1.6, -0.7, 0.2]}
-        fontSize={0.16}
-        color="#d8d0bf"
-        anchorX="left"
-        anchorY="middle"
-        maxWidth={2.2}
-      >
-        SUBJECT IDENTIFIED
-      </Text>
-    </group>
-  );
-}
-
-function CompanionCubeMesh() {
-  const group = useRef();
-  useFrame(({ clock }) => {
-    group.current.rotation.x = -0.22 + Math.sin(clock.elapsedTime * 0.4) * 0.04;
-    group.current.rotation.y += 0.004;
-  });
-  const pads = [
-    [0, 0, 0.531, 0, 0, 0],
-    [0, 0, -0.531, 0, Math.PI, 0],
-    [0.531, 0, 0, 0, Math.PI / 2, 0],
-    [-0.531, 0, 0, 0, -Math.PI / 2, 0],
-    [0, 0.531, 0, -Math.PI / 2, 0, 0],
-    [0, -0.531, 0, Math.PI / 2, 0, 0],
-  ];
-  return (
-    <group ref={group} position={[-2.8, -11.2, -4.1]} scale={0.85}>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[1, 1, 1]} />
-        <MeshDistortMaterial color="#8a8780" roughness={0.72} metalness={0.42} distort={0.05} speed={0.8} />
-      </mesh>
-      {pads.map((pad, index) => (
-        <mesh key={index} position={pad.slice(0, 3)} rotation={pad.slice(3)}>
-          <boxGeometry args={[0.52, 0.52, 0.028]} />
-          <meshStandardMaterial color="#c8c1b7" roughness={0.62} metalness={0.34} />
+      {Array.from({ length: 9 }, (_, index) => (
+        <mesh key={`floor-z-${index}`} position={[0, 0.008, -8 + index * 2]} rotation={[-Math.PI / 2, 0, Math.PI / 2]} material={lineMaterial}>
+          <planeGeometry args={[0.012, 12]} />
         </mesh>
       ))}
-      <mesh position={[0, 0, 0.565]}>
-        <ringGeometry args={[0.12, 0.22, 5]} />
-        <meshBasicMaterial color="#d4899c" side={THREE.DoubleSide} />
+      <mesh position={[0, 4.1, -7.2]} receiveShadow material={panelMaterial}>
+        <boxGeometry args={[12, 0.1, 7]} />
       </mesh>
     </group>
   );
 }
 
-function Scene() {
+function ScrollRig({ children }) {
+  const rig = useRef();
+  const camera = useThree((state) => state.camera);
+  useFrame((_, delta) => {
+    const progress = getScrollProgress();
+    if (rig.current) {
+      rig.current.position.y = damp(rig.current.position.y, progress * 10.2, 2.4, delta);
+    }
+    const portalKick = cursorStore.portalEvent ? Math.max(0, 1 - (performance.now() - cursorStore.portalEvent.at) / 720) : 0;
+    camera.position.y = damp(camera.position.y, 0.5 - progress * 0.6, 1.8, delta);
+    camera.rotation.z = damp(camera.rotation.z, cursorStore.world.x * 0.012, 2, delta);
+    camera.fov = damp(camera.fov, 43 + portalKick * 3.5, 4, delta);
+    camera.updateProjectionMatrix();
+
+    if (cursorStore.anomalyActive) {
+      camera.position.x += (Math.random() - 0.5) * 0.15;
+      camera.position.y += (Math.random() - 0.5) * 0.15;
+      camera.rotation.z += (Math.random() - 0.5) * 0.06;
+    } else {
+      camera.position.x = damp(camera.position.x, 0, 2.4, delta);
+    }
+  });
+  return <group ref={rig}>{children}</group>;
+}
+
+function Scene({ reducedMotion }) {
   return (
     <>
-      <PerspectiveCamera makeDefault position={[0, 0.5, 5.5]} fov={45} />
+      <PerspectiveCamera makeDefault position={[0, 0.5, 5.5]} fov={43} />
       <color attach="background" args={['#050504']} />
-      <fog attach="fog" args={['#050504', 6, 18]} />
-      <ambientLight intensity={0.22} />
-      <directionalLight position={[-3, 5, 4]} intensity={1.1} castShadow />
-      <pointLight position={[-3.6, 0.5, -3.5]} color="#f17322" intensity={3.2} distance={6} />
-      <pointLight position={[3.6, -1.2, -3.5]} color="#2b8cff" intensity={2.8} distance={6} />
-      <Architecture />
-      <ProjectArtifacts />
-      <CompanionCubeMesh />
-      <Overseer />
+      <fog attach="fog" args={['#050504', 7, 22]} />
+      <ambientLight intensity={0.35} />
+      <directionalLight position={[-3, 5, 4]} intensity={1.2} castShadow={!reducedMotion} />
+      <pointLight position={[0, 2, -2]} color={paper} intensity={0.4} distance={8} decay={2} />
+      <pointLight position={[-2, 0, -3]} color={blue} intensity={0.3} distance={6} decay={2} />
+      <pointLight position={[2, 0, -3]} color={orange} intensity={0.3} distance={6} decay={2} />
+      <ScrollRig>
+        <ChamberGeometry />
+        <GLaDOSModel />
+        <WheatleyModel />
+        <CompanionCubeModel />
+      </ScrollRig>
     </>
   );
 }
@@ -156,11 +229,12 @@ export function ChamberScene({ reducedMotion }) {
     <div className="chamber-canvas" aria-hidden="true">
       <Canvas
         shadows={!reducedMotion}
-        dpr={reducedMotion ? [1, 1.2] : [1, 1.8]}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        dpr={reducedMotion ? [0.8, 1.1] : [1, 1.45]}
+        gl={{ alpha: false, antialias: true, powerPreference: 'high-performance' }}
+        frameloop="always"
       >
         <Suspense fallback={null}>
-          <Scene />
+          <Scene reducedMotion={reducedMotion} />
         </Suspense>
       </Canvas>
     </div>

@@ -27,6 +27,7 @@
     "eslint": "^9.17.0",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.1.0",
+    "fbx2gltf": "^0.9.7-p1",
     "vite": "^6.0.6"
   }
 }
