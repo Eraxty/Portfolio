@@ -181,11 +181,13 @@ new ResizeObserver(() => measure()).observe(document.querySelector('main'));
 let lastMove = performance.now();
 let wasIdle = false;
 let idleStage = 0;
-window.addEventListener('pointermove', () => {
+const active = () => {
   if (wasIdle && currentSection === 'hero') say('r-ah', { once: false });
   wasIdle = false;
   lastMove = performance.now();
-}, { passive: true });
+};
+// mouse, touch and scrolling all count as "someone is here"
+['pointermove', 'touchstart', 'wheel', 'scroll'].forEach((ev) => window.addEventListener(ev, active, { passive: true }));
 function moods(now, speed01) {
   if (!window.__ready) return;
   if (speed01 > 0.85) say('fast');
@@ -261,5 +263,6 @@ gsap.ticker.add((time) => {
   lenis.start();
   window.scrollTo(0, 0);
   window.__ready = true;
+  lastMove = performance.now();
   setTimeout(() => { if (lenis.scroll < 40) say('hello', { ms: 4200 }); }, 2600);
 })();
