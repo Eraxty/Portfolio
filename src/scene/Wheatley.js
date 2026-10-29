@@ -132,6 +132,7 @@ export class Wheatley {
   poke() {
     this.startle = 1;
     this.blinkT = 0.0001;
+    this.onBlink?.();
   }
 
   update(dt, t, speed01) {
@@ -175,6 +176,7 @@ export class Wheatley {
     this.nextBlink -= dt;
     if (this.nextBlink <= 0 && this.blinkT === 0) {
       this.blinkT = 0.0001;
+      this.onBlink?.();
       this.nextBlink = 2.4 + Math.random() * 4 + (Math.random() < 0.2 ? -2.2 : 0);
     }
     let close = 0;

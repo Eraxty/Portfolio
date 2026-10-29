@@ -31,6 +31,7 @@ function say(who, line, { once = true, ms = 3800 } = {}) {
   const b = document.createElement('b');
   b.textContent = who;
   sub.append(b, document.createTextNode(line));
+  sound.speak(line, who);
   sub.classList.add('show');
   clearTimeout(subTimer);
   subTimer = setTimeout(() => sub.classList.remove('show'), ms);
@@ -49,7 +50,12 @@ const syncSound = () => {
   soundBtn.querySelector('span').textContent = sound.on ? 'on' : 'off';
 };
 syncSound();
-soundBtn.addEventListener('click', () => { sound.set(!sound.on); syncSound(); sound.tick(); });
+soundBtn.addEventListener('click', () => {
+  sound.set(!sound.on);
+  syncSound();
+  sound.tick();
+  if (sound.on) say('Wheatley', 'Oh! Can you hear me now? Brilliant. Testing, testing.', { once: false });
+});
 
 // ───────── smooth scroll ─────────
 const lenis = new Lenis({ lerp: reduced ? 1 : 0.085, wheelMultiplier: 0.95, smoothWheel: !reduced });
@@ -144,7 +150,7 @@ window.addEventListener('click', (e) => {
 world?.on('wheatley-poke', () => {
   say('Wheatley', pokes[Math.min(pokeN, pokes.length - 1)], { once: false, ms: 2800 });
   pokeN++;
-  sound.beep(520, 0.08, 'triangle', 0.4);
+  sound.beep(1400, 0.05, 'triangle', 0.25);
 });
 world?.on('cube-land', (loops) => {
   sound.thud();
@@ -201,6 +207,10 @@ gsap.ticker.add((time) => {
 
   if (world) {
     world.update(dt, now / 1000, y, vel, speed01);
+    if (world.wheatley) {
+      world.wheatley.onBlink ||= () => sound.click();
+      sound.servo(world.wheatley.angVel);
+    }
     // DOM flash in sync with the portal transit
     flash.style.opacity = (world.transit * 0.9).toFixed(3);
     flash.style.setProperty('--flash', y > world.portalAt ? '#ff7a1a' : '#2f9bff');
