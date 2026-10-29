@@ -1,8 +1,5 @@
-/pics
 node_modules
 dist
-playwright-report
-test-results
-qa-*.png
 *.zip
 .DS_Store
+pics/
