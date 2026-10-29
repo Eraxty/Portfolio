@@ -54,6 +54,7 @@ window.addEventListener('keydown', unlockAudio, { once: true });
 
 // ───────── smooth scroll ─────────
 const lenis = new Lenis({ lerp: reduced ? 1 : 0.085, wheelMultiplier: 0.95, smoothWheel: !reduced });
+const BASE_WHEEL = 0.95;
 lenis.stop();
 document.querySelectorAll('a[href^="#"]').forEach((a) => {
   a.addEventListener('click', (e) => {
@@ -135,11 +136,47 @@ window.addEventListener('touchstart', (e) => {
   world?.setPointer((t.clientX / innerWidth) * 2 - 1, -(t.clientY / innerHeight) * 2 + 1);
 }, { passive: true });
 
+if (mobile) $('.gun-hint').textContent = 'Tap the wall for portals';
+
+// ───────── portal gun ─────────
+// Left click on empty wall shoots blue, right click shoots orange. Phones alternate with each tap.
+// Text, links and media are left alone so reading and selecting still work.
+const NOT_WALL = 'a, button, p, h1, h2, li, dl, img, figure, .island, .tower, .subtitle, .eyebrow, .hero-meta';
+let nextTap = 'blue';
 let pokeN = 0;
+let gladosPokes = 0;
+const toNdc = (e) => [(e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1];
 window.addEventListener('click', (e) => {
-  if (!world || e.target.closest('a, button')) return;
-  world.click((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  if (!world || !window.__ready || e.target.closest('a, button')) return;
+  const [nx, ny] = toNdc(e);
+  if (world.click(nx, ny) || e.target.closest(NOT_WALL)) return;
+  const kind = mobile ? nextTap : 'blue';
+  if (world.shoot(kind, nx, ny, lenis.scroll) && mobile) nextTap = kind === 'blue' ? 'orange' : 'blue';
 });
+window.addEventListener('contextmenu', (e) => {
+  if (!world || !window.__ready || e.target.closest(NOT_WALL)) return;
+  e.preventDefault();
+  const [nx, ny] = toNdc(e);
+  world.shoot('orange', nx, ny, lenis.scroll);
+});
+world?.on('portal-placed', (kind, both) => {
+  sound.shoot(kind);
+  cursor.setPortals(world.gun.portals.blue.placed, world.gun.portals.orange.placed);
+  if (both) say('gun-2');
+  else say('gun-1');
+});
+world?.on('portal-enter', () => sound.portal(1));
+world?.on('portal-alone', () => say('gun-1', { once: false }));
+world?.on('portal-jump', (y) => {
+  lenis.scrollTo(y, { immediate: true, force: true });
+  sound.portal(0.7);
+  setTimeout(() => say('gun-arrive'), 500);
+});
+world?.on('glados-poke', () => {
+  gladosPokes++;
+  say(`glados-poke-${Math.min(gladosPokes, 3)}`, { once: gladosPokes <= 3 });
+});
+
 world?.on('wheatley-poke', () => {
   if (pokeN > 4 && Math.random() < 0.5) say(['r-oh', 'r-hm', 'r-ooh'][Math.floor(Math.random() * 3)], { once: false });
   else say(`poke-${Math.min(pokeN, 4) + 1}`, { once: false, ms: 2800 });
@@ -199,6 +236,38 @@ function moods(now, speed01) {
   if (idle < 1000) idleStage = Math.min(idleStage, 1);
 }
 
+// ───────── easter eggs ─────────
+// Konami code opens DRS (double scroll speed for a lap), typing "cake" or "wheatley" does what you'd expect.
+const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+let konamiAt = 0;
+let typed = '';
+const drsBadge = $('.drs');
+window.addEventListener('keydown', (e) => {
+  const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  konamiAt = key === KONAMI[konamiAt] ? konamiAt + 1 : key === KONAMI[0] ? 1 : 0;
+  if (konamiAt === KONAMI.length) {
+    konamiAt = 0;
+    lenis.options.wheelMultiplier = BASE_WHEEL * 2.4;
+    drsBadge.classList.add('on');
+    sound.engineStart();
+    sound.rpm(0.9, 0.1);
+    setTimeout(() => sound.launch(), 400);
+    say('drs', { once: false });
+    clearTimeout(drsBadge.t);
+    drsBadge.t = setTimeout(() => { lenis.options.wheelMultiplier = BASE_WHEEL; drsBadge.classList.remove('on'); }, 15000);
+  }
+  if (e.key.length !== 1 || e.target.closest('input, textarea')) return;
+  typed = (typed + key).slice(-12);
+  if (typed.endsWith('cake')) say('cake', { once: false });
+  if (typed.endsWith('wheatley') && world?.wheatley) { world.wheatley.spin(); say('spin', { once: false }); }
+});
+
+console.log(
+  '%c ERAXTY %c\n\nOh, you opened the console. Respect.\nThis whole site is hand-written Three.js by a 17-year-old in Delhi.\nTry: left/right click the wall, the Konami code, typing "cake", clicking the Lab car.\nSay hi: hardikrajotiyamars@gmail.com',
+  'background:#ff7a1a;color:#000;font:800 14px Archivo,sans-serif;padding:4px 8px',
+  'color:#9a9a92;font:12px JetBrains Mono,monospace',
+);
+
 // ───────── frame loop ─────────
 const flash = $('.portal-flash');
 let lastScroll = 0;
@@ -235,7 +304,7 @@ gsap.ticker.add((time) => {
     moods(now, speed01);
     // DOM flash in sync with the portal transit
     flash.style.opacity = (world.transit * 0.9).toFixed(3);
-    flash.style.setProperty('--flash', y > world.portalAt ? '#ff7a1a' : '#2f9bff');
+    flash.style.setProperty('--flash', world.flashColor);
     if (!crossed && y > world.portalAt) { crossed = true; sound.portal(1); say('portal'); }
     if (crossed && y < world.portalAt - 10) crossed = false;
   }
@@ -251,7 +320,7 @@ gsap.ticker.add((time) => {
     }
     await document.fonts.ready;
     const repos = await repoPromise;
-    lap = createLap($('#lab'), { reduced, names: repos.filter((r) => projects[r.id]).map((r) => r.name) });
+    lap = createLap($('#lab'), { reduced, names: repos.filter((r) => projects[r.id]).map((r) => r.name), onPit: () => { say('pit', { once: false }); sound.beep(880, 0.08); setTimeout(() => sound.beep(880, 0.08), 160); } });
     loader.progress(1);
   } catch (err) {
     console.error(err);

@@ -262,6 +262,36 @@ export function createSound() {
       o.start(t); o.stop(t + 0.8);
       n.start(t);
     },
+    // portal gun: a bright zap that drops in pitch, then the portal opening hum (blue a touch higher)
+    shoot(kind) {
+      if (!ensure() || ctx.state !== 'running') return;
+      const t = ctx.currentTime;
+      const hi = kind === 'blue' ? 1.15 : 1;
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(1800 * hi, t);
+      o.frequency.exponentialRampToValueAtTime(260 * hi, t + 0.16);
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(5000, t);
+      f.frequency.exponentialRampToValueAtTime(600, t + 0.2);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.55, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      o.connect(f).connect(g).connect(master);
+      o.start(t); o.stop(t + 0.25);
+      // the portal blooming open on the wall
+      const hum = ctx.createOscillator();
+      hum.type = 'triangle';
+      hum.frequency.setValueAtTime(90 * hi, t + 0.12);
+      hum.frequency.exponentialRampToValueAtTime(140 * hi, t + 0.5);
+      const hg = ctx.createGain();
+      hg.gain.setValueAtTime(0.0001, t + 0.12);
+      hg.gain.exponentialRampToValueAtTime(0.5, t + 0.2);
+      hg.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+      hum.connect(hg).connect(master);
+      hum.start(t + 0.12); hum.stop(t + 0.95);
+    },
     // Wheatley's eye motor: a filtered buzz whose level and pitch follow how fast the eye turns.
     servo(angVel) {
       if (!on || !ctx || ctx.state !== 'running') return;

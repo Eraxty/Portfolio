@@ -23,7 +23,7 @@ const el = (tag, attrs = {}, parent) => {
   return n;
 };
 
-export function createLap(root, { reduced, names = ['Atlas'] }) {
+export function createLap(root, { reduced, names = ['Atlas'], onPit }) {
   const svg = root.querySelector('.circuit');
   svg.setAttribute('viewBox', '0 0 640 480');
   const lapN = root.querySelector('.lap-n');
@@ -36,6 +36,14 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
   // sample the lap: positions, then a speed profile that brakes before corners
   const N = 720;
   const pts = Array.from({ length: N + 1 }, (_, i) => track.getPointAtLength((i / N) * L));
+  // per-frame positions come from the samples, not from getPointAtLength
+  const pointAt = (d) => {
+    const x = (((d % 1) + 1) % 1) * N;
+    const i = Math.floor(x);
+    const f = x - i;
+    const a = pts[i], b = pts[i + 1];
+    return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+  };
   const curv = pts.map((p, i) => {
     const a = pts[(i - 6 + N) % N];
     const b = pts[(i + 6) % N];
@@ -130,6 +138,18 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
   const trail = Array.from({ length: 7 }, (_, i) => el('circle', { r: 6 - i * 0.6, fill: '#ff7a1a', opacity: 0.35 - i * 0.045 }, svg));
   const car = el('circle', { r: 7.5, fill: '#ff7a1a', stroke: '#141416', 'stroke-width': 2.5 }, svg);
   const ring = el('circle', { r: 8, fill: 'none', stroke: '#141416', 'stroke-width': 1.5, opacity: 0 }, svg);
+  // easter egg: click the car to call it into the pits
+  const carHit = el('circle', { r: 22, fill: 'transparent', style: 'cursor:pointer' }, svg);
+  const pitLbl = el('text', { 'text-anchor': 'middle', class: 'lab-label pit' }, svg);
+  pitLbl.style.opacity = 0;
+  let pit = null;
+  let pace = 1;
+  carHit.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (pit || !running) return;
+    pit = { phase: 'brake', t: 0 };
+    onPit?.();
+  });
   car.style.transformBox = 'fill-box';
   car.style.transformOrigin = 'center';
 
@@ -138,6 +158,7 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
     .lab-label { font: 500 11px 'JetBrains Mono', monospace; letter-spacing: .08em; fill: #141416; }
     .lab-label.small { font-size: 9.5px; fill: #77776f; }
     .lab-label.ship { fill: #ff7a1a; }
+    .lab-label.pit { fill: #b44cff; font-size: 12px; transition: opacity .3s; }
     .island .build { opacity: 0; transform: translateY(14px); filter: blur(5px); }
     .island .build.in { opacity: 1; transform: none; filter: none; transition: opacity .9s cubic-bezier(.16,1,.3,1), transform 1s cubic-bezier(.16,1,.3,1), filter .75s cubic-bezier(.33,1,.68,1); }
   `;
@@ -155,7 +176,7 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
   let curSpeed = 0;
 
   const place = (d) => {
-    const p = track.getPointAtLength(d * L);
+    const p = pointAt(d);
     car.setAttribute('cx', p.x); car.setAttribute('cy', p.y);
     ring.setAttribute('cx', p.x); ring.setAttribute('cy', p.y);
   };
@@ -199,7 +220,21 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
     const dt = Math.min(0.05, (now - last) / 1000 || 0);
     last = now;
     if (visible) {
-      u += dt / LAP_SECONDS;
+      if (pit) {
+        pit.t += dt;
+        if (pit.phase === 'brake') { pace = Math.max(0, 1 - pit.t / 0.5); if (pit.t > 0.5) { pit.phase = 'stop'; pit.t = 0; } }
+        else if (pit.phase === 'stop') {
+          pace = 0;
+          pitLbl.textContent = `BOX  ${pit.t.toFixed(1)}s`;
+          pitLbl.style.opacity = 1;
+          if (pit.t > 2.3) { pit.phase = 'go'; pit.t = 0; pitLbl.textContent = 'BOX  2.3s'; }
+        } else {
+          pace = Math.min(1, pit.t / 0.7);
+          if (pit.t > 1.6) pitLbl.style.opacity = 0;
+          if (pit.t > 2) pit = null;
+        }
+      }
+      u += (dt / LAP_SECONDS) * pace;
       if (u >= 1) { u -= 1; nextLap(); prevSector = 0; }
       const d = distAt(u);
       curSpeed = speed[Math.min(N - 1, Math.floor(d * N))];
@@ -207,8 +242,11 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
       if (sector !== prevSector) { pulse(); prevSector = sector; }
       place(d);
       paint(d);
+      const cp = pointAt(d);
+      carHit.setAttribute('cx', cp.x); carHit.setAttribute('cy', cp.y);
+      pitLbl.setAttribute('x', cp.x); pitLbl.setAttribute('y', cp.y - 18);
       for (let i = trail.length - 1; i >= 0; i--) {
-        const p = track.getPointAtLength(Math.max(0, d - (i + 1) * 0.006) * L);
+        const p = pointAt(Math.max(0, d - (i + 1) * 0.006));
         trail[i].setAttribute('cx', p.x); trail[i].setAttribute('cy', p.y);
       }
     }

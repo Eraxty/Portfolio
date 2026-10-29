@@ -129,6 +129,9 @@ export class Wheatley {
 
   nudge() { this.idle = 0; }
 
+  // a full barrel roll, for the people who type his name
+  spin() { this.spinT = 0.0001; }
+
   poke() {
     this.startle = 1;
     this.blinkT = 0.0001;
@@ -162,7 +165,14 @@ export class Wheatley {
     this.startle = Math.max(0, this.startle - dt * 1.6);
     const jolt = Math.sin(t * 60) * this.startle * 0.08;
     this.body.position.y = Math.sin(t * 1.3) * 0.025;
-    this.body.rotation.z = Math.sin(t * 0.9) * 0.03 + jolt;
+    let roll = 0;
+    if (this.spinT) {
+      this.spinT += dt;
+      const k = Math.min(this.spinT / 1.1, 1);
+      roll = (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2) * Math.PI * 2;
+      if (k >= 1) this.spinT = 0;
+    }
+    this.body.rotation.z = Math.sin(t * 0.9) * 0.03 + jolt + roll;
     this.body.rotation.x = Math.sin(t * 1.1 + 1) * 0.02;
 
     // handles twitch with eye speed

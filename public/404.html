@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chamber not found · Eraxty</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg: #0a0a0b; --ink: #ecece6; --mute: #77776f; --blue: #2f9bff; --orange: #ff7a1a; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      background-image: linear-gradient(#141416 1px, transparent 1px), linear-gradient(90deg, #141416 1px, transparent 1px);
+      background-size: 64px 64px;
+      color: var(--ink);
+      font-family: Archivo, system-ui, sans-serif;
+      padding: 24px 16px;
+      overflow: hidden;
+    }
+    main { display: grid; justify-items: center; gap: 28px; text-align: center; }
+    .portals { display: flex; gap: clamp(40px, 12vw, 160px); }
+    .p {
+      width: clamp(70px, 14vw, 120px);
+      aspect-ratio: 0.7;
+      border-radius: 50%;
+      border: 4px solid var(--c);
+      box-shadow: 0 0 24px var(--c), inset 0 0 30px color-mix(in srgb, var(--c) 40%, transparent);
+      background: radial-gradient(closest-side, #050505 60%, color-mix(in srgb, var(--c) 25%, #050505));
+      animation: breathe 2.4s ease-in-out infinite;
+    }
+    .p.b { --c: var(--blue); }
+    .p.o { --c: var(--orange); animation-delay: -1.2s; }
+    @keyframes breathe { 50% { transform: scale(1.04); box-shadow: 0 0 40px var(--c), inset 0 0 40px color-mix(in srgb, var(--c) 50%, transparent); } }
+    h1 {
+      margin: 0;
+      font-weight: 850;
+      font-variation-settings: 'wdth' 125;
+      font-size: clamp(64px, 16vw, 200px);
+      line-height: 0.85;
+      letter-spacing: -0.05em;
+    }
+    p { margin: 0; max-width: 40ch; color: #b9b9b1; font-size: 17px; line-height: 1.5; }
+    .who { font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue); margin-right: 8px; }
+    a {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink);
+      text-decoration: none;
+      padding: 14px 22px;
+      border: 1px solid var(--orange);
+      transition: background 0.3s, color 0.3s;
+    }
+    a:hover, a:focus-visible { background: var(--orange); color: #000; outline: none; }
+    @media (prefers-reduced-motion: reduce) { .p { animation: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="portals" aria-hidden="true"><div class="p b"></div><div class="p o"></div></div>
+    <h1>404</h1>
+    <p><span class="who">Wheatley</span>Right, so, this chamber doesn't exist. Which is odd, because I was sure I built it. Let's go back through the orange one.</p>
+    <a href="/">Back to the facility</a>
+  </main>
+</body>
+</html>

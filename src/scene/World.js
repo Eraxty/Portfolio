@@ -10,6 +10,7 @@ import { panelMaterial, portalMaterial } from './materials.js';
 import { Wheatley } from './Wheatley.js';
 import { Glados } from './Glados.js';
 import { CubeRig } from './CubeRig.js';
+import { PortalGun, PORTAL_COLORS } from './PortalGun.js';
 
 const FOV = 35;
 const lerp = THREE.MathUtils.lerp;
@@ -38,7 +39,13 @@ export class World {
     const r = (this.renderer = new THREE.WebGLRenderer({
       canvas, antialias: false, stencil: false, depth: true, powerPreference: 'high-performance',
     }));
-    r.setPixelRatio(Math.min(window.devicePixelRatio, mobile ? 1.5 : 1.75));
+    // adaptive resolution: start high, step down if frames run long, creep back up when there is headroom
+    this.dprMax = Math.min(window.devicePixelRatio, mobile ? 1.5 : 1.75);
+    this.dprMin = mobile ? 0.75 : 1;
+    this.dpr = this.dprMax;
+    this.frameTimes = [];
+    this.adaptAt = 0;
+    r.setPixelRatio(this.dpr);
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.NoToneMapping;
     r.setClearColor('#0a0a0b');
@@ -56,6 +63,9 @@ export class World {
     this.#lights();
     this.#chamber();
     this.#composer();
+    this.gun = new PortalGun(this.scene);
+    this.flashColor = PORTAL_COLORS.blue;
+    this.travelFlash = 0;
   }
 
   on(name, fn) { (this.listeners[name] ||= []).push(fn); }
@@ -140,14 +150,14 @@ export class World {
   #composer() {
     const c = (this.composer = new EffectComposer(this.renderer, { frameBufferType: THREE.HalfFloatType }));
     c.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new BloomEffect({ intensity: 1.15, luminanceThreshold: 0.72, luminanceSmoothing: 0.2, mipmapBlur: true, radius: 0.75 });
+    this.bloom = new BloomEffect({ intensity: 1.15, luminanceThreshold: 0.72, luminanceSmoothing: 0.2, mipmapBlur: true, radius: 0.75, resolutionScale: 0.5 });
     this.ca = new ChromaticAberrationEffect({ offset: new THREE.Vector2(0, 0), radialModulation: true, modulationOffset: 0.25 });
     const noise = new NoiseEffect({ blendFunction: BlendFunction.OVERLAY, premultiply: false });
     noise.blendMode.opacity.value = 0.09;
     const vignette = new VignetteEffect({ darkness: 0.62, offset: 0.28 });
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.AGX });
     c.addPass(new EffectPass(this.camera, this.bloom, tone));
-    c.addPass(new EffectPass(this.camera, new SMAAEffect()));
+    if (!this.mobile) c.addPass(new EffectPass(this.camera, new SMAAEffect()));
     c.addPass(new EffectPass(this.camera, this.ca, vignette, noise));
   }
 
@@ -164,11 +174,18 @@ export class World {
 
     this.wheatley = new Wheatley(w);
     this.scene.add(this.wheatley.root);
+    // cheap invisible hit shapes: raycasting a skinned mesh every few frames is not free
+    const ghost = new THREE.MeshBasicMaterial({ visible: false });
+    this.wheatleyHit = new THREE.Mesh(new THREE.SphereGeometry(0.62, 12, 8), ghost);
+    this.wheatley.root.add(this.wheatleyHit);
 
     this.glados = new Glados(g);
     this.glados.root.position.set(3.1, Y.subject + 5.7, -0.8);
     this.glados.root.rotation.y = -0.55;
     this.scene.add(this.glados.root);
+    this.gladosHit = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 2.6, 10), ghost);
+    this.gladosHit.position.set(-0.2, -3.9, 0);
+    this.glados.root.add(this.gladosHit);
 
     this.cubeRig = new CubeRig(c, { floorY: CONTACT.floor, ceilY: CONTACT.ceil });
     this.cubeRig.root.position.x = CONTACT.x;
@@ -208,6 +225,7 @@ export class World {
     this.titleMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, color: new THREE.Color(0.62, 0.62, 0.6) });
     this.title = new THREE.Mesh(new THREE.PlaneGeometry(1, H / W), this.titleMat);
     this.title.position.set(0, 0.05, -1.8);
+    this.title.renderOrder = 4;
     this.scene.add(this.title);
   }
 
@@ -299,25 +317,61 @@ export class World {
     this.wheatley?.nudge();
   }
 
+  // What did the visitor click? Things first, then portals; empty wall is the caller's to shoot at.
   click(nx, ny) {
     this.raycaster.setFromCamera({ x: nx, y: ny }, this.camera);
     if (this.cubeRig && this.cubeRig.cube.visible && this.cubeRig.hit(this.raycaster)) {
       this.cubeRig.toggleLoop();
       this.emit('cube-click', this.cubeRig.state);
-      return true;
+      return 'cube';
     }
-    if (this.wheatley && this.raycaster.intersectObject(this.wheatley.root, true).length) {
+    if (this.wheatley && this.raycaster.intersectObject(this.wheatleyHit, false).length) {
       this.wheatley.poke();
       this.emit('wheatley-poke');
-      return true;
+      return 'wheatley';
     }
-    return false;
+    if (this.glados && this.gladosNear && this.raycaster.intersectObject(this.gladosHit, false).length) {
+      this.glados.poke?.();
+      this.emit('glados-poke');
+      return 'glados';
+    }
+    const portal = this.gun.hit(this.raycaster);
+    if (portal) {
+      if (this.gun.enter(portal)) this.emit('portal-enter', portal.kind);
+      else this.emit('portal-alone', portal.kind);
+      return 'portal';
+    }
+    return null;
+  }
+
+  shoot(kind, nx, ny, scrollY) {
+    if (this.gun.travel) return null;
+    this.raycaster.setFromCamera({ x: nx, y: ny }, this.camera);
+    const p = this.gun.shoot(kind, this.raycaster, scrollY);
+    if (p) this.emit('portal-placed', kind, this.gun.both);
+    return p;
   }
 
   hoverTarget(nx, ny) {
     this.raycaster.setFromCamera({ x: nx, y: ny }, this.camera);
-    const objs = [this.wheatley?.root, this.cubeRig?.cube].filter(Boolean);
-    return this.raycaster.intersectObjects(objs, true).length > 0;
+    const objs = [this.wheatleyHit, this.cubeRig?.cube.visible && this.cubeRig.hitBox, this.gladosNear && this.gladosHit,
+      ...Object.values(this.gun.portals).filter((p) => p.placed).map((p) => p.mesh)].filter(Boolean);
+    return this.raycaster.intersectObjects(objs, false).length > 0;
+  }
+
+  #adapt(dt) {
+    this.frameTimes.push(dt);
+    if (this.frameTimes.length < 90) return;
+    const avg = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
+    this.frameTimes.length = 0;
+    let next = this.dpr;
+    if (avg > 1 / 45 && this.dpr > this.dprMin) next = Math.max(this.dprMin, this.dpr - 0.25);
+    else if (avg < 1 / 75 && this.dpr < this.dprMax) next = Math.min(this.dprMax, this.dpr + 0.125);
+    if (next !== this.dpr) {
+      this.dpr = next;
+      this.renderer.setPixelRatio(next);
+      this.composer.setSize(window.innerWidth, window.innerHeight);
+    }
   }
 
   update(dt, t, scrollY, velocity, speed01) {
@@ -346,6 +400,38 @@ export class World {
     const py = this.pointerSmooth.y;
     cam.x += px * 0.18;
     cam.y += py * 0.1;
+
+    // portal travel: dive into one portal, jump the page, burst out of the other
+    const tr = this.gun.travel;
+    this.travelFlash = 0;
+    if (tr) {
+      tr.t += dt;
+      const front = new THREE.Vector3();
+      if (tr.phase === 'in') {
+        const k = Math.min(tr.t / 0.5, 1);
+        const e = k * k * k;
+        cam.lerp(this.gun.front(tr.from, front), e);
+        look.lerp(tr.from.mesh.position, e);
+        this.travelFlash = smooth(Math.max(0, (k - 0.6) / 0.4));
+        this.flashColor = PORTAL_COLORS[tr.from.kind];
+        if (k >= 1) {
+          tr.phase = 'out';
+          tr.t = 0;
+          this.emit('portal-jump', tr.to.scrollY, tr.to.kind);
+        }
+      } else {
+        const k = Math.min(tr.t / 0.85, 1);
+        const e = 1 - Math.pow(1 - k, 3);
+        const start = this.gun.front(tr.to, front);
+        cam.copy(start.lerp(cam, e));
+        look.copy(tr.to.mesh.position.clone().lerp(look, e));
+        this.travelFlash = 1 - smooth(Math.min(1, k * 2.5));
+        this.flashColor = PORTAL_COLORS[tr.to.kind];
+        if (k >= 1) this.gun.travel = null;
+      }
+    }
+    this.gun.update(dt, t);
+
     this.camera.position.copy(cam);
     this.camera.lookAt(look);
     this.camera.updateMatrixWorld();
@@ -359,11 +445,24 @@ export class World {
     const after = clamp01((scrollY - this.portalAt) / (window.innerHeight * 0.7));
     const xu = this.exit.material.uniforms;
     xu.uTime.value = t;
-    this.exit.visible = scrollY > this.portalAt && after < 1;
-    const es = 1.6 + Math.pow(after, 1.4) * 9;
-    this.exit.scale.set(es, es, 1);
-    xu.uFill.value = 1 - smooth(clamp01(after * 2.4));
-    this.transit = scrollY < this.portalAt ? pu.uFill.value : 1 - clamp01(after * 2.4);
+    if (tr && tr.phase === 'out') {
+      const k = Math.min(tr.t / 0.85, 1);
+      xu.uColor.value.set(PORTAL_COLORS[tr.to.kind]);
+      this.exit.visible = true;
+      const es2 = 1.6 + Math.pow(k, 1.2) * 10;
+      this.exit.scale.set(es2, es2, 1);
+      xu.uFill.value = 1 - smooth(Math.min(1, k * 2.4));
+      this.transit = this.travelFlash;
+    } else {
+      xu.uColor.value.set(PORTAL_COLORS.orange);
+      this.exit.visible = scrollY > this.portalAt && after < 1;
+      const es = 1.6 + Math.pow(after, 1.4) * 9;
+      this.exit.scale.set(es, es, 1);
+      xu.uFill.value = 1 - smooth(clamp01(after * 2.4));
+      this.transit = scrollY < this.portalAt ? pu.uFill.value : 1 - clamp01(after * 2.4);
+      if (!tr) this.flashColor = scrollY > this.portalAt ? PORTAL_COLORS.orange : PORTAL_COLORS.blue;
+    }
+    this.transit = Math.max(this.transit, this.travelFlash);
 
     // Wheatley rides along in screen space
     if (this.wheatley) {
@@ -393,6 +492,7 @@ export class World {
     // GLaDOS watches you
     if (this.glados) {
       const near = Math.abs(cam.y - Y.subject) < 7;
+      this.gladosNear = near;
       const tgt = this.#screenToWorld(px, py, 2.5, new THREE.Vector3());
       this.glados.setTarget(tgt);
       this.glados.update(dt, near);
@@ -412,6 +512,7 @@ export class World {
     this.ca.offset.set(v * 0.004 + this.transit * 0.006, v * 0.002);
 
     this.composer.render(dt);
+    this.#adapt(dt);
   }
 }
 

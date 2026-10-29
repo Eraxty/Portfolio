@@ -31,7 +31,11 @@ export class Glados {
     // string points down, head faces +Z.
     this.mixer = new THREE.AnimationMixer(model);
     const clip = gltf.animations.find((a) => a.name === 'glados_loopsmall') || gltf.animations[0];
-    if (clip) this.mixer.clipAction(clip).play();
+    const angry = gltf.animations.find((a) => a.name === 'glados_idle_agitated');
+    this.calm = clip && this.mixer.clipAction(clip);
+    this.angry = angry && this.mixer.clipAction(angry);
+    this.calm?.play();
+    this.angryUntil = 0;
     this.mixer.update(0);
     model.updateMatrixWorld(true);
     const bone = (n) => model.getObjectByName(n);
@@ -69,6 +73,21 @@ export class Glados {
   }
 
   setTarget(p) { this.target.copy(p); }
+
+  // Poke her and she thrashes for a few seconds before settling back into her idle loop.
+  poke() {
+    if (!this.angry || !this.calm) return;
+    if (performance.now() > this.angryUntil) {
+      this.angry.reset().setEffectiveWeight(1).play();
+      this.calm.crossFadeTo(this.angry, 0.4, false);
+    }
+    this.angryUntil = performance.now() + 5000;
+    clearTimeout(this.settle);
+    this.settle = setTimeout(() => {
+      this.calm.reset().setEffectiveWeight(1).play();
+      this.angry.crossFadeTo(this.calm, 1.2, false);
+    }, 5000);
+  }
 
   update(dt, visible) {
     if (!visible) return;

@@ -25,6 +25,8 @@ export class CubeRig {
     this.spinner.add(cube);
     this.cube.add(this.spinner);
     this.half = 0.41;
+    this.hitBox = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.95, 0.95), new THREE.MeshBasicMaterial({ visible: false }));
+    this.cube.add(this.hitBox);
     this.root.add(this.cube);
 
     // Aperture floor button: a low wide drum, a lit ring, and a plate that sinks under weight.
@@ -90,7 +92,7 @@ export class CubeRig {
   }
 
   hit(raycaster) {
-    return raycaster.intersectObject(this.cube, true).length > 0;
+    return raycaster.intersectObject(this.hitBox, false).length > 0;
   }
 
   update(dt, t) {

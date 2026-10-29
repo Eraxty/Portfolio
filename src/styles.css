@@ -518,6 +518,28 @@ body.has-cursor #cursor { opacity: 1; }
 #cursor .c-orange { stroke: var(--orange); }
 #cursor circle { fill: #fff; }
 #cursor.hover svg { transform: scale(1.45) rotate(90deg); }
+#cursor.has-blue .c-blue, #cursor.has-orange .c-orange { stroke-width: 5.5; filter: drop-shadow(0 0 4px currentColor); }
+#cursor .c-blue { color: var(--blue); }
+#cursor .c-orange { color: var(--orange); }
+.drs {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  z-index: 25;
+  padding: 6px 12px;
+  background: var(--green);
+  color: #000;
+  transform: translate(-50%, -20px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.5s var(--ease-out);
+}
+.drs.on { opacity: 1; transform: translate(-50%, 0); animation: drs-blink 0.6s steps(2) 3; }
+@keyframes drs-blink { 50% { opacity: 0.2; } }
+.gun-hint { color: var(--mute); }
+.gun-hint b { font-weight: 500; }
+.gun-hint .b { color: var(--blue); }
+.gun-hint .o { color: var(--orange); }
 #cursor.down path { stroke-width: 5; }
 #cursor.on-light circle { fill: #000; }
 

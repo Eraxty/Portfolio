@@ -117,5 +117,55 @@
     "who": "Wheatley",
     "text": "Ah! Hello.",
     "quiet": true
+  },
+  {
+    "id": "gun-1",
+    "who": "Wheatley",
+    "text": "Ooh, a portal gun! Now the other colour, somewhere else. Left click blue, right click orange."
+  },
+  {
+    "id": "gun-2",
+    "who": "Wheatley",
+    "text": "Both portals up! Click one and jump in. Go on. I'll be right behind you. Probably."
+  },
+  {
+    "id": "gun-arrive",
+    "who": "Wheatley",
+    "text": "Wheee! Okay. Okay. Where are we? Oh, it's fine. Still the website."
+  },
+  {
+    "id": "glados-poke-1",
+    "who": "GLaDOS",
+    "text": "Please stop touching me. I am a facility, not a petting zoo."
+  },
+  {
+    "id": "glados-poke-2",
+    "who": "GLaDOS",
+    "text": "That's going in your file. The permanent one."
+  },
+  {
+    "id": "glados-poke-3",
+    "who": "GLaDOS",
+    "text": "Fine. Keep clicking. I have all the time in the world. You do not."
+  },
+  {
+    "id": "drs",
+    "who": "Wheatley",
+    "text": "DRS open! Go go go! Faster scrolling, everybody!"
+  },
+  {
+    "id": "cake",
+    "who": "GLaDOS",
+    "text": "There is no cake. There was never a cake. Please return to the portfolio."
+  },
+  {
+    "id": "spin",
+    "who": "Wheatley",
+    "text": "Wheeee! Did you see that? Do it again. Actually, don't."
+  },
+  {
+    "id": "pit",
+    "who": "Wheatley",
+    "text": "Box, box! Pit stop! Fresh tyres, lovely."
   }
 ]
