@@ -9,6 +9,7 @@ import { renderTower } from './ui/timing.js';
 import { createWordLight } from './ui/words.js';
 import { createLap } from './ui/lap.js';
 import { loadRepos, projects } from './data.js';
+import lines from './lines.json';
 
 const params = new URLSearchParams(location.search);
 const reduced = params.get('motion') === 'off' || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -23,18 +24,19 @@ const loader = createLoader(sound);
 const sub = $('.subtitle');
 let subTimer;
 const said = new Set();
-function say(who, line, { once = true, ms = 3800 } = {}) {
-  const key = who + line;
-  if (once && said.has(key)) return;
-  said.add(key);
+const lineById = Object.fromEntries(lines.map((l) => [l.id, l]));
+function say(id, { once = true, ms = 3800 } = {}) {
+  const l = lineById[id];
+  if (!l || (once && said.has(id))) return;
+  said.add(id);
   sub.innerHTML = '';
   const b = document.createElement('b');
-  b.textContent = who;
-  sub.append(b, document.createTextNode(line));
-  sound.speak(line, who);
+  b.textContent = l.who;
+  sub.append(b, document.createTextNode(l.text));
   sub.classList.add('show');
+  sound.speak(`/voice/${id}.mp3`);
   clearTimeout(subTimer);
-  subTimer = setTimeout(() => sub.classList.remove('show'), ms);
+  subTimer = setTimeout(() => sub.classList.remove('show'), Math.max(ms, l.text.length * 62));
 }
 
 // ───────── header bits ─────────
@@ -54,7 +56,7 @@ soundBtn.addEventListener('click', () => {
   sound.set(!sound.on);
   syncSound();
   sound.tick();
-  if (sound.on) say('Wheatley', 'Oh! Can you hear me now? Brilliant. Testing, testing.', { once: false });
+  if (sound.on) say('sound-on', { once: false });
 });
 
 // ───────── smooth scroll ─────────
@@ -89,10 +91,10 @@ const navIO = new IntersectionObserver((entries) => {
     if (!en.isIntersecting) return;
     const id = en.target.id;
     navLinks.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === `#${id}`));
-    if (id === 'work') setTimeout(() => say('Wheatley', 'These are all his. The one on top has a hundred and ten stars. A hundred and ten!'), 900);
+    if (id === 'work') setTimeout(() => say('work'), 900);
     if (id === 'subject') {
-      say('GLaDOS', 'Oh. A visitor. Keep scrolling. The test results will not read themselves.');
-      setTimeout(() => say('Wheatley', "I'll just wait over here. Out of frame. No reason."), 4300);
+      say('glados-subject');
+      setTimeout(() => say('hide'), 4300);
     }
   });
 }, { threshold: 0.35 });
@@ -135,32 +137,25 @@ window.addEventListener('touchstart', (e) => {
   world?.setPointer((t.clientX / innerWidth) * 2 - 1, -(t.clientY / innerHeight) * 2 + 1);
 }, { passive: true });
 
-const pokes = [
-  'Oh! Hello. Yes, that is my eye.',
-  'Still my eye.',
-  "Right. I'm going to pretend that didn't happen.",
-  'Have you tried scrolling? Loads of good stuff down there.',
-  'Okay. Okay. I am choosing to find this flattering.',
-];
 let pokeN = 0;
 window.addEventListener('click', (e) => {
   if (!world || e.target.closest('a, button')) return;
   world.click((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
 });
 world?.on('wheatley-poke', () => {
-  say('Wheatley', pokes[Math.min(pokeN, pokes.length - 1)], { once: false, ms: 2800 });
+  say(`poke-${Math.min(pokeN, 4) + 1}`, { once: false, ms: 2800 });
   pokeN++;
   sound.beep(1400, 0.05, 'triangle', 0.25);
 });
 world?.on('cube-land', (loops) => {
   sound.thud();
-  if (loops > 2) say('Wheatley', `${loops} laps through the portals and not a scratch. Good cube.`, { once: false });
-  else say('Wheatley', 'Button pressed. In my experience that opens something. Probably the email.');
+  if (loops > 2) say('cube-laps', { once: false });
+  else say('cube-land');
   $('.mail').animate([{ color: '#ff7a1a' }, { color: '' }], { duration: 1600, easing: 'ease-out' });
 });
 world?.on('cube-click', (state) => {
   sound.whoosh(state === 'looping');
-  if (state === 'looping') say('Wheatley', 'Ooh, infinite fall. Click it again to stop. Probably.');
+  if (state === 'looping') say('cube-loop');
 });
 
 const cursor = createCursor({
@@ -237,9 +232,10 @@ gsap.ticker.add((time) => {
   }
   measure();
   await loader.finish({ reduced });
+  syncSound();
   document.body.classList.remove('is-loading');
   lenis.start();
   window.scrollTo(0, 0);
   window.__ready = true;
-  setTimeout(() => { if (lenis.scroll < 40) say('Wheatley', 'Hello? Oh, hello! Move that thing about a bit. I can see it.', { ms: 4200 }); }, 2600);
+  setTimeout(() => { if (lenis.scroll < 40) say('hello', { ms: 4200 }); }, 2600);
 })();

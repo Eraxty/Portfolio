@@ -117,6 +117,30 @@ main, .top { position: relative; z-index: 2; }
   color: var(--mute);
 }
 .loader-pct { color: var(--ink); font-variant-numeric: tabular-nums; }
+.loader-bar { height: 1px; background: #1c1c1c; margin-top: -26px; }
+.loader-bar i { display: block; height: 100%; background: var(--ink); transform: scaleX(0); transform-origin: left; }
+.loader-go {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: opacity 0.6s var(--ease-out), transform 0.8s var(--ease-out), visibility 0s 0.6s;
+}
+#loader.ready .loader-go { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+#loader.ready .loader-bar, #loader.sequence .loader-bar { opacity: 0; transition: opacity 0.4s; }
+.loader-go button {
+  padding: 14px 20px;
+  border: 1px solid #2a2a2a;
+  color: var(--ink);
+  transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+.loader-go button span { color: var(--mute); margin-left: 8px; transition: color 0.3s; }
+.loader-go button[data-sound='on'] { border-color: var(--red); }
+.loader-go button:hover, .loader-go button:focus-visible { background: var(--ink); color: #000; border-color: var(--ink); outline: none; }
+.loader-go button:hover span { color: #555; }
+body.is-loading #loader button { cursor: pointer; }
 
 /* ───────── header ───────── */
 .top {

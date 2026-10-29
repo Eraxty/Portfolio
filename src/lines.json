@@ -1,0 +1,15 @@
+[
+  { "id": "hello", "who": "Wheatley", "text": "Hello? Oh, hello! Move that thing about a bit. I can see it." },
+  { "id": "sound-on", "who": "Wheatley", "text": "Oh! Can you hear me now? Brilliant. Testing, testing." },
+  { "id": "poke-1", "who": "Wheatley", "text": "Oh! Hello. Yes, that is my eye." },
+  { "id": "poke-2", "who": "Wheatley", "text": "Still my eye." },
+  { "id": "poke-3", "who": "Wheatley", "text": "Right. I'm going to pretend that didn't happen." },
+  { "id": "poke-4", "who": "Wheatley", "text": "Have you tried scrolling? Loads of good stuff down there." },
+  { "id": "poke-5", "who": "Wheatley", "text": "Okay. Okay. I am choosing to find this flattering." },
+  { "id": "work", "who": "Wheatley", "text": "These are all his. The one on top has a hundred and ten stars. A hundred and ten!" },
+  { "id": "glados-subject", "who": "GLaDOS", "text": "Oh. A visitor. Keep scrolling. The test results will not read themselves." },
+  { "id": "hide", "who": "Wheatley", "text": "I'll just wait over here. Out of frame. No reason." },
+  { "id": "cube-land", "who": "Wheatley", "text": "Button pressed. In my experience that opens something. Probably the email." },
+  { "id": "cube-loop", "who": "Wheatley", "text": "Ooh, infinite fall. Click it again to stop. Probably." },
+  { "id": "cube-laps", "who": "Wheatley", "text": "Round and round and round, and not a scratch on it. Good cube." }
+]

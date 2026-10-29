@@ -4,6 +4,8 @@ export function createSound() {
   let master = null;
   let on = false;
   let servo = null;
+  let voice = null;
+  const buffers = new Map();
   try { on = localStorage.getItem('eraxty:sound') === '1'; } catch { /* storage blocked */ }
 
   const ensure = () => {
@@ -19,13 +21,85 @@ export function createSound() {
     return ctx;
   };
 
+  let engine = null;
+
   const api = {
     get on() { return on; },
+    // Must run inside a click: browsers only allow audio after a gesture.
+    async unlock() {
+      if (!ensure()) return;
+      try { await ctx.resume(); } catch { /* ignore */ }
+    },
+    // A small V-shaped engine: two detuned saws and a sub, distorted and low-passed. rpm01 0 idle .. 1 limiter.
+    engineStart() {
+      if (!on || !ensure() || engine) return;
+      const out = ctx.createGain();
+      out.gain.value = 0;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.Q.value = 3;
+      const shaper = ctx.createWaveShaper();
+      const curve = new Float32Array(1024);
+      for (let i = 0; i < curve.length; i++) { const x = (i / 512) - 1; curve[i] = Math.tanh(x * 3.5); }
+      shaper.curve = curve;
+      const oscs = [['sawtooth', 1, 0.5], ['sawtooth', 1.007, 0.5], ['square', 0.5, 0.35]].map(([type, mul, gain]) => {
+        const o = ctx.createOscillator();
+        o.type = type;
+        const g = ctx.createGain();
+        g.gain.value = gain;
+        o.connect(g).connect(shaper);
+        o.start();
+        return { o, mul };
+      });
+      // the lumpy idle: an LFO wobbling the volume
+      const lfo = ctx.createOscillator();
+      const lfoG = ctx.createGain();
+      lfo.frequency.value = 9;
+      lfoG.gain.value = 0.25;
+      lfo.connect(lfoG).connect(out.gain);
+      lfo.start();
+      shaper.connect(lp).connect(out).connect(master);
+      engine = { out, lp, oscs, lfo, lfoG };
+      out.gain.setTargetAtTime(0.55, ctx.currentTime, 0.2);
+      api.rpm(0);
+    },
+    rpm(r, glide = 0.25) {
+      if (!engine) return;
+      const now = ctx.currentTime;
+      const f = 38 + r * 150;
+      engine.oscs.forEach(({ o, mul }) => o.frequency.setTargetAtTime(f * mul, now, glide));
+      engine.lp.frequency.setTargetAtTime(300 + r * 2600, now, glide);
+      engine.lfoG.gain.setTargetAtTime(0.25 * (1 - r), now, glide);
+    },
+    // Lights out: dump the clutch, two quick upshifts, then fade away down the straight.
+    launch() {
+      if (!engine) return;
+      const e = engine;
+      const t = ctx.currentTime;
+      const set = (time, f, cut) => {
+        e.oscs.forEach(({ o, mul }) => o.frequency.setTargetAtTime(f * mul, t + time, 0.12));
+        e.lp.frequency.setTargetAtTime(cut, t + time, 0.12);
+      };
+      set(0, 175, 3200);
+      set(0.55, 120, 2400);  // upshift
+      set(0.62, 182, 3300);
+      set(1.25, 128, 2500);  // upshift
+      set(1.32, 186, 3400);
+      e.lfoG.gain.setTargetAtTime(0, t, 0.05);
+      e.out.gain.setTargetAtTime(0.75, t, 0.05);
+      e.out.gain.setTargetAtTime(0, t + 1.5, 0.45);
+      setTimeout(() => {
+        e.oscs.forEach(({ o }) => o.stop());
+        e.lfo.stop();
+        e.out.disconnect();
+      }, 4500);
+      engine = null;
+    },
     set(v) {
       on = v;
       try { localStorage.setItem('eraxty:sound', v ? '1' : '0'); } catch { /* ignore */ }
       if (v) ensure();
-      else { window.speechSynthesis?.cancel(); if (servo) servo.g.gain.value = 0; }
+      else { voice?.stop(); if (servo) servo.g.gain.value = 0; }
     },
     // Wheatley's eye motor: a filtered buzz whose level and pitch follow how fast the eye turns.
     servo(angVel) {
@@ -65,20 +139,21 @@ export function createSound() {
       src.connect(f).connect(g).connect(master);
       src.start();
     },
-    // Captions read aloud with the browser's own voices. Not a recording of anyone.
-    speak(text, who) {
-      const synth = window.speechSynthesis;
-      if (!on || !synth) return;
-      const voices = synth.getVoices();
-      const gb = voices.filter((v) => /en[-_]GB/i.test(v.lang));
-      const u = new SpeechSynthesisUtterance(text);
-      u.voice = (who === 'GLaDOS' ? gb.find((v) => /female|libby|sonia|hazel|kate|serena/i.test(v.name)) : gb.find((v) => /male|ryan|george|daniel|arthur/i.test(v.name))) || gb[0] || voices.find((v) => /^en/i.test(v.lang)) || null;
-      u.lang = 'en-GB';
-      if (who === 'GLaDOS') { u.rate = 0.92; u.pitch = 1.35; }
-      else { u.rate = 1.18; u.pitch = 1.15; }
-      u.volume = 0.9;
-      synth.cancel();
-      synth.speak(u);
+    // Voice lines are pre-rendered files (tools/render-voices.py), so they play in every browser.
+    async speak(src) {
+      if (!on || !ensure()) return;
+      try {
+        if (!buffers.has(src)) buffers.set(src, fetch(src).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)));
+        const buf = await buffers.get(src);
+        if (!on) return;
+        voice?.stop();
+        voice = ctx.createBufferSource();
+        voice.buffer = buf;
+        const g = ctx.createGain();
+        g.gain.value = 4.5;   // the master bus is quiet for UI ticks; voices sit on top
+        voice.connect(g).connect(master);
+        voice.start();
+      } catch { /* missing file or decode error: captions still show */ }
     },
     beep(freq = 880, dur = 0.1, type = 'square', gain = 0.5) {
       if (!on || !ensure() || ctx.state !== 'running') return;
