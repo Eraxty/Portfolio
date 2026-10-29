@@ -320,7 +320,7 @@ gsap.ticker.add((time) => {
     }
     await document.fonts.ready;
     const repos = await repoPromise;
-    lap = createLap($('#lab'), { reduced, names: repos.filter((r) => projects[r.id]).map((r) => r.name), onPit: () => { say('pit', { once: false }); sound.beep(880, 0.08); setTimeout(() => sound.beep(880, 0.08), 160); } });
+    lap = createLap($('#lab'), { reduced, names: repos.filter((r) => projects[r.id]).map((r) => r.name), onPit: () => { say('pit', { once: false }); sound.beep(880, 0.08); setTimeout(() => sound.beep(880, 0.08), 160); setTimeout(() => sound.pitStop(), 600); } });
     loader.progress(1);
   } catch (err) {
     console.error(err);

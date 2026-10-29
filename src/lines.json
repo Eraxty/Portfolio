@@ -2,7 +2,8 @@
   {
     "id": "hello",
     "who": "Wheatley",
-    "text": "Hello? Oh, hello! Move that thing about a bit. I can see it."
+    "text": "Hello? Oh, hello! Move that thing about a bit. I can see it.",
+    "say": "[curious] Hello? [excited] Oh, hello! Move that thing about a bit. I can see it."
   },
   {
     "id": "sound-on",
@@ -12,7 +13,8 @@
   {
     "id": "poke-1",
     "who": "Wheatley",
-    "text": "Oh! Hello. Yes, that is my eye."
+    "text": "Oh! Hello. Yes, that is my eye.",
+    "say": "[startled] Oh! [nervous laugh] Hello. Yes, that is my eye."
   },
   {
     "id": "poke-2",
@@ -22,7 +24,8 @@
   {
     "id": "poke-3",
     "who": "Wheatley",
-    "text": "Right. I'm going to pretend that didn't happen."
+    "text": "Right. I'm going to pretend that didn't happen.",
+    "say": "[sighs] Right. I'm going to pretend that didn't happen."
   },
   {
     "id": "poke-4",
@@ -32,12 +35,14 @@
   {
     "id": "poke-5",
     "who": "Wheatley",
-    "text": "Okay. Okay. I am choosing to find this flattering."
+    "text": "Okay. Okay. I am choosing to find this flattering.",
+    "say": "[flustered] Okay. Okay. I am choosing to find this flattering."
   },
   {
     "id": "work",
     "who": "Wheatley",
-    "text": "These are all his. The one on top has a hundred and ten stars. A hundred and ten!"
+    "text": "These are all his. The one on top has a hundred and ten stars. A hundred and ten!",
+    "say": "These are all his. The one on top has a hundred and ten stars. [excited] A hundred and ten!"
   },
   {
     "id": "glados-subject",
@@ -47,7 +52,8 @@
   {
     "id": "hide",
     "who": "Wheatley",
-    "text": "I'll just wait over here. Out of frame. No reason."
+    "text": "I'll just wait over here. Out of frame. No reason.",
+    "say": "[whispering] I'll just wait over here. Out of frame. No reason."
   },
   {
     "id": "cube-land",
@@ -67,7 +73,8 @@
   {
     "id": "idle-1",
     "who": "Wheatley",
-    "text": "Are you still there? Just checking. No pressure."
+    "text": "Are you still there? Just checking. No pressure.",
+    "say": "[hesitant] Are you still there? Just checking. No pressure."
   },
   {
     "id": "idle-2",
@@ -77,12 +84,14 @@
   {
     "id": "fast",
     "who": "Wheatley",
-    "text": "Whoa, whoa! Slow down! That is very fast!"
+    "text": "Whoa, whoa! Slow down! That is very fast!",
+    "say": "[panicked] Whoa, whoa! Slow down! That is very fast!"
   },
   {
     "id": "portal",
     "who": "Wheatley",
-    "text": "Portals! Okay! Fine! Love a portal!"
+    "text": "Portals! Okay! Fine! Love a portal!",
+    "say": "[excited] Portals! Okay! Fine! Love a portal!"
   },
   {
     "id": "lab",
@@ -98,25 +107,29 @@
     "id": "r-oh",
     "who": "Wheatley",
     "text": "Oh!",
-    "quiet": true
+    "quiet": true,
+    "say": "[startled] Oh!"
   },
   {
     "id": "r-hm",
     "who": "Wheatley",
     "text": "Hm?",
-    "quiet": true
+    "quiet": true,
+    "say": "[curious] Hm?"
   },
   {
     "id": "r-ooh",
     "who": "Wheatley",
     "text": "Ooh!",
-    "quiet": true
+    "quiet": true,
+    "say": "[impressed] Ooh!"
   },
   {
     "id": "r-ah",
     "who": "Wheatley",
     "text": "Ah! Hello.",
-    "quiet": true
+    "quiet": true,
+    "say": "[happy] Ah! Hello."
   },
   {
     "id": "gun-1",
@@ -131,7 +144,8 @@
   {
     "id": "gun-arrive",
     "who": "Wheatley",
-    "text": "Wheee! Okay. Okay. Where are we? Oh, it's fine. Still the website."
+    "text": "Wheee! Okay. Okay. Where are we? Oh, it's fine. Still the website.",
+    "say": "[dizzy] Wheee! Okay. Okay. Where are we? [relieved] Oh, it's fine. Still the website."
   },
   {
     "id": "glados-poke-1",
@@ -141,7 +155,8 @@
   {
     "id": "glados-poke-2",
     "who": "GLaDOS",
-    "text": "That's going in your file. The permanent one."
+    "text": "That's going in your file. The permanent one.",
+    "say": "[dry] That's going in your file. The permanent one."
   },
   {
     "id": "glados-poke-3",
@@ -156,12 +171,14 @@
   {
     "id": "cake",
     "who": "GLaDOS",
-    "text": "There is no cake. There was never a cake. Please return to the portfolio."
+    "text": "There is no cake. There was never a cake. Please return to the portfolio.",
+    "say": "[flatly] There is no cake. There was never a cake. Please return to the portfolio."
   },
   {
     "id": "spin",
     "who": "Wheatley",
-    "text": "Wheeee! Did you see that? Do it again. Actually, don't."
+    "text": "Wheeee! Did you see that? Do it again. Actually, don't.",
+    "say": "[laughing] Wheeee! Did you see that? Do it again. [nervous] Actually, don't."
   },
   {
     "id": "pit",

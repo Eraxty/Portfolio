@@ -21,6 +21,28 @@ export function createSound() {
   };
 
   let engine = null;
+  let sfxIndex = new Set();
+  let grid = null;
+  const samples = new Map();
+  // ElevenLabs effects live in /sfx; index.json lists what exists. Anything missing falls back to synthesis.
+  const has = (id) => sfxIndex.has(id);
+  const play = async (id, { gain = 1, pan = 0, loop = false, to = null, delay = 0 } = {}) => {
+    if (!has(id) || !ensure()) return null;
+    if (!samples.has(id)) samples.set(id, fetch(`/sfx/${id}.mp3`).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)));
+    try {
+      const buf = await samples.get(id);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = loop;
+      const g = ctx.createGain();
+      g.gain.value = gain;
+      const p = ctx.createStereoPanner();
+      p.pan.value = pan;
+      src.connect(g).connect(p).connect(to || master);
+      src.start(ctx.currentTime + delay);
+      return { src, g };
+    } catch { return null; }
+  };
   let amb = null;
   let servoPan = null;
   let wheatPan = 0;
@@ -58,9 +80,17 @@ export function createSound() {
     async unlock() {
       if (!ensure()) return;
       try { await ctx.resume(); } catch { /* ignore */ }
+      if (!sfxIndex.size) {
+        try { sfxIndex = new Set(await (await fetch('/sfx/index.json')).json()); } catch { /* synth only */ }
+      }
     },
+    pitStop() { play('pit-stop', { gain: 3 }); },
     // A small V-shaped engine: two detuned saws and a sub, distorted and low-passed. rpm01 0 idle .. 1 limiter.
     engineStart() {
+      if (has('f1-grid')) {
+        if (!grid) play('f1-grid', { gain: 2.4 }).then((h) => (grid = h));
+        return;
+      }
       if (!on || !ensure() || engine) return;
       const out = ctx.createGain();
       out.gain.value = 0;
@@ -102,6 +132,11 @@ export function createSound() {
     },
     // Lights out: dump the clutch, two quick upshifts, then fade away down the straight.
     launch() {
+      if (has('f1-launch')) {
+        if (grid) { grid.g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); grid = null; }
+        play('f1-launch', { gain: 2.6 });
+        return;
+      }
       if (!engine) return;
       const e = engine;
       const t = ctx.currentTime;
@@ -198,7 +233,18 @@ export function createSound() {
       carLp.connect(carG).connect(master);
       car.start(); car2.start();
 
-      amb = { bus, roomLp, hum, hum2, airG, darkG, tremG, windBp, windG, car, car2, carLp, carG };
+      // recorded beds layered on top when they exist
+      const bedG = ctx.createGain();
+      bedG.gain.value = 0.9;
+      bedG.connect(bus);
+      const gladosG = ctx.createGain();
+      gladosG.gain.value = 0;
+      gladosG.connect(bus);
+      play('facility', { loop: true, to: bedG });
+      play('glados-hum', { loop: true, to: gladosG });
+      if (has('facility')) roomG.gain.value = 0.6;
+
+      amb = { bus, roomLp, hum, hum2, airG, darkG, tremG, windBp, windG, car, car2, carLp, carG, gladosG };
       bus.gain.setTargetAtTime(1, ctx.currentTime, 1.2);
     },
     mood(name) {
@@ -211,6 +257,7 @@ export function createSound() {
       amb.airG.gain.setTargetAtTime(m.air, t, 0.8);
       amb.darkG.gain.setTargetAtTime(m.dark * 0.22, t, 1.5);
       amb.tremG.gain.setTargetAtTime(m.dark * 0.12, t, 1.5);
+      amb.gladosG.gain.setTargetAtTime(m.dark * 1.4, t, 1.5);
     },
     // called every frame: scroll speed, the Lab car, and where Wheatley sits left to right
     frame({ scrollVel = 0, carLive = false, carSpeed = 0, pan = 0 }) {
@@ -229,6 +276,7 @@ export function createSound() {
     },
     // going through a portal: a pitched-down sweep with a ringing tail
     portal(intensity = 1) {
+      if (has('portal-travel')) { play('portal-travel', { gain: 2.2 * intensity }); return; }
       if (!ensure() || ctx.state !== 'running') return;
       const t = ctx.currentTime;
       const o = ctx.createOscillator();
@@ -264,6 +312,11 @@ export function createSound() {
     },
     // portal gun: a bright zap that drops in pitch, then the portal opening hum (blue a touch higher)
     shoot(kind) {
+      if (has(`shoot-${kind}`)) {
+        play(`shoot-${kind}`, { gain: 2 });
+        play('portal-open', { gain: 1.6, delay: 0.12 });
+        return;
+      }
       if (!ensure() || ctx.state !== 'running') return;
       const t = ctx.currentTime;
       const hi = kind === 'blue' ? 1.15 : 1;
@@ -363,6 +416,11 @@ export function createSound() {
     },
     tick() { api.beep(2400, 0.025, 'square', 0.12); },
     thud() {
+      if (has('cube-land')) {
+        play('cube-land', { gain: 2.4 });
+        play('button', { gain: 2, delay: 0.08 });
+        return;
+      }
       if (!on || !ensure()) return;
       const o = ctx.createOscillator();
       const g = ctx.createGain();

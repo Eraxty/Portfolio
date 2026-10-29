@@ -1,0 +1,13 @@
+[
+  { "id": "shoot-blue", "prompt": "sci-fi portal gun firing, a short bright energy zap with a crisp electric crackle, higher pitched", "seconds": 0.8, "influence": 0.6 },
+  { "id": "shoot-orange", "prompt": "sci-fi portal gun firing, a short warm energy zap with an electric crackle, slightly lower pitched", "seconds": 0.8, "influence": 0.6 },
+  { "id": "portal-open", "prompt": "a sci-fi portal snapping open on a wall, swirling energy whoosh settling into a soft resonant hum", "seconds": 1.4 },
+  { "id": "portal-travel", "prompt": "flying through a sci-fi wormhole portal, a fast rushing whoosh with a pressure drop and a shimmering tail", "seconds": 1.6 },
+  { "id": "f1-grid", "prompt": "modern Formula 1 car on the starting grid, hybrid V6 engine revving rhythmically and holding high revs, close up", "seconds": 6 },
+  { "id": "f1-launch", "prompt": "modern Formula 1 car launching off the start line, hybrid V6 screaming through two fast upshifts and pulling away, close up then fading", "seconds": 4 },
+  { "id": "pit-stop", "prompt": "Formula 1 pit stop, pneumatic wheel guns rattling rapidly, car dropping off the jacks", "seconds": 2.5 },
+  { "id": "button", "prompt": "heavy industrial floor button pressed down by a weight, deep metallic clunk with a short hydraulic hiss, sci-fi lab", "seconds": 1.2 },
+  { "id": "cube-land", "prompt": "a heavy metal crate dropped onto a metal floor panel, solid thud with a short metallic ring", "seconds": 1 },
+  { "id": "facility", "prompt": "huge empty sci-fi underground test facility, low room tone, distant ventilation, faint mechanical hum, calm ambience", "seconds": 22, "loop": true, "influence": 0.4 },
+  { "id": "glados-hum", "prompt": "low ominous electrical hum of a giant robotic artificial intelligence hanging from the ceiling, subtle servo whirs", "seconds": 12, "loop": true, "influence": 0.4 }
+]
