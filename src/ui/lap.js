@@ -152,6 +152,7 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
   let visible = false;
   let last = 0;
   let nameIdx = 0;
+  let curSpeed = 0;
 
   const place = (d) => {
     const p = track.getPointAtLength(d * L);
@@ -201,6 +202,7 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
       u += dt / LAP_SECONDS;
       if (u >= 1) { u -= 1; nextLap(); prevSector = 0; }
       const d = distAt(u);
+      curSpeed = speed[Math.min(N - 1, Math.floor(d * N))];
       const sector = SECTORS.findIndex((s) => d >= s.from && d < s.to);
       if (sector !== prevSector) { pulse(); prevSector = sector; }
       place(d);
@@ -219,7 +221,7 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
     paint(0.9999);
     place(0);
     trail.forEach((c) => c.setAttribute('opacity', 0));
-    return { setCount() {} };
+    return { live: false, speed: 0 };
   }
 
   // build in once at ~30% visible: the track draws itself, labels rise, then the car rolls
@@ -246,5 +248,8 @@ export function createLap(root, { reduced, names = ['Atlas'] }) {
   }, { threshold: 0.3 });
   io.observe(root);
 
-  return {};
+  return {
+    get live() { return running && visible; },
+    get speed() { return curSpeed; },
+  };
 }

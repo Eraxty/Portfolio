@@ -111,6 +111,7 @@ export class CubeRig {
         // through the blue portal, out of the orange one
         this.y += this.ceilY - (this.floorY + 0.2);
         this.loops++;
+        this.onPass?.();
       } else if (this.state === 'falling' && this.y <= ground) {
         this.y = ground;
         if (this.vy < -3) {

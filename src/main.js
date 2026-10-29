@@ -29,12 +29,13 @@ function say(id, { once = true, ms = 3800 } = {}) {
   const l = lineById[id];
   if (!l || (once && said.has(id))) return;
   said.add(id);
+  sound.speak(`/voice/${id}.mp3`, l.who === 'Wheatley');
+  if (l.quiet) return;
   sub.innerHTML = '';
   const b = document.createElement('b');
   b.textContent = l.who;
   sub.append(b, document.createTextNode(l.text));
   sub.classList.add('show');
-  sound.speak(`/voice/${id}.mp3`);
   clearTimeout(subTimer);
   subTimer = setTimeout(() => sub.classList.remove('show'), Math.max(ms, l.text.length * 62));
 }
@@ -46,18 +47,10 @@ const setClock = () => (clock.textContent = fmt.format(new Date()));
 setClock();
 setInterval(setClock, 15000);
 
-const soundBtn = $('.sound-toggle');
-const syncSound = () => {
-  soundBtn.setAttribute('aria-pressed', String(sound.on));
-  soundBtn.querySelector('span').textContent = sound.on ? 'on' : 'off';
-};
-syncSound();
-soundBtn.addEventListener('click', () => {
-  sound.set(!sound.on);
-  syncSound();
-  sound.tick();
-  if (sound.on) say('sound-on', { once: false });
-});
+// Audio can only start after a gesture: the first one anywhere unlocks it (covers the reduced-motion path).
+const unlockAudio = () => { sound.unlock().then(() => { sound.ambienceStart(); sound.mood(currentSection); }); };
+window.addEventListener('pointerdown', unlockAudio, { once: true });
+window.addEventListener('keydown', unlockAudio, { once: true });
 
 // ───────── smooth scroll ─────────
 const lenis = new Lenis({ lerp: reduced ? 1 : 0.085, wheelMultiplier: 0.95, smoothWheel: !reduced });
@@ -74,6 +67,8 @@ document.querySelectorAll('a[href^="#"]').forEach((a) => {
 
 // ───────── statement, reveals, nav ─────────
 const words = createWordLight($('[data-words]'));
+let currentSection = 'hero';
+let lap = { live: false, speed: 0 };
 const sections = {
   hero: $('#hero'), statement: $('#statement'), work: $('#work'), lab: $('#lab'), subject: $('#subject'), contact: $('#contact'),
 };
@@ -90,8 +85,11 @@ const navIO = new IntersectionObserver((entries) => {
   entries.forEach((en) => {
     if (!en.isIntersecting) return;
     const id = en.target.id;
+    currentSection = id;
+    sound.mood(id);
     navLinks.forEach((a) => a.classList.toggle('active', a.getAttribute('href') === `#${id}`));
     if (id === 'work') setTimeout(() => say('work'), 900);
+    if (id === 'lab') setTimeout(() => say('lab'), 1200);
     if (id === 'subject') {
       say('glados-subject');
       setTimeout(() => say('hide'), 4300);
@@ -143,7 +141,8 @@ window.addEventListener('click', (e) => {
   world.click((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
 });
 world?.on('wheatley-poke', () => {
-  say(`poke-${Math.min(pokeN, 4) + 1}`, { once: false, ms: 2800 });
+  if (pokeN > 4 && Math.random() < 0.5) say(['r-oh', 'r-hm', 'r-ooh'][Math.floor(Math.random() * 3)], { once: false });
+  else say(`poke-${Math.min(pokeN, 4) + 1}`, { once: false, ms: 2800 });
   pokeN++;
   sound.beep(1400, 0.05, 'triangle', 0.25);
 });
@@ -151,8 +150,10 @@ world?.on('cube-land', (loops) => {
   sound.thud();
   if (loops > 2) say('cube-laps', { once: false });
   else say('cube-land');
+  setTimeout(() => say('contact'), 7000);
   $('.mail').animate([{ color: '#ff7a1a' }, { color: '' }], { duration: 1600, easing: 'ease-out' });
 });
+world?.on('cube-pass', () => sound.portal(0.55));
 world?.on('cube-click', (state) => {
   sound.whoosh(state === 'looping');
   if (state === 'looping') say('cube-loop');
@@ -174,6 +175,27 @@ const measure = () => world?.measure(sections);
 const onResize = () => { world?.resize(); measure(); };
 window.addEventListener('resize', onResize);
 new ResizeObserver(() => measure()).observe(document.querySelector('main'));
+
+// Wheatley reacts to how you treat him: a yelp at a wild cursor, a hello when you come back,
+// and some nervous chatter if you leave him alone on the hero.
+let lastMove = performance.now();
+let wasIdle = false;
+let idleStage = 0;
+window.addEventListener('pointermove', () => {
+  if (wasIdle && currentSection === 'hero') say('r-ah', { once: false });
+  wasIdle = false;
+  lastMove = performance.now();
+}, { passive: true });
+function moods(now, speed01) {
+  if (!window.__ready) return;
+  if (speed01 > 0.85) say('fast');
+  const idle = now - lastMove;
+  if (idle > 6000) wasIdle = true;
+  if (currentSection !== 'hero') return;
+  if (idle > 14000 && idleStage === 0) { idleStage = 1; say('idle-1'); }
+  if (idle > 32000 && idleStage === 1) { idleStage = 2; say('idle-2'); }
+  if (idle < 1000) idleStage = Math.min(idleStage, 1);
+}
 
 // ───────── frame loop ─────────
 const flash = $('.portal-flash');
@@ -205,11 +227,14 @@ gsap.ticker.add((time) => {
     if (world.wheatley) {
       world.wheatley.onBlink ||= () => sound.click();
       sound.servo(world.wheatley.angVel);
+      const sx = world.wheatley.root.position.clone().project(world.camera).x;
+      sound.frame({ scrollVel: vel, carLive: lap.live, carSpeed: lap.speed, pan: sx });
     }
+    moods(now, speed01);
     // DOM flash in sync with the portal transit
     flash.style.opacity = (world.transit * 0.9).toFixed(3);
     flash.style.setProperty('--flash', y > world.portalAt ? '#ff7a1a' : '#2f9bff');
-    if (!crossed && y > world.portalAt) { crossed = true; sound.whoosh(false); }
+    if (!crossed && y > world.portalAt) { crossed = true; sound.portal(1); say('portal'); }
     if (crossed && y < world.portalAt - 10) crossed = false;
   }
   cursor.update(pointer.x, pointer.y);
@@ -224,7 +249,7 @@ gsap.ticker.add((time) => {
     }
     await document.fonts.ready;
     const repos = await repoPromise;
-    createLap($('#lab'), { reduced, names: repos.filter((r) => projects[r.id]).map((r) => r.name) });
+    lap = createLap($('#lab'), { reduced, names: repos.filter((r) => projects[r.id]).map((r) => r.name) });
     loader.progress(1);
   } catch (err) {
     console.error(err);
@@ -232,7 +257,6 @@ gsap.ticker.add((time) => {
   }
   measure();
   await loader.finish({ reduced });
-  syncSound();
   document.body.classList.remove('is-loading');
   lenis.start();
   window.scrollTo(0, 0);

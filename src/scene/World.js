@@ -173,6 +173,7 @@ export class World {
     this.cubeRig = new CubeRig(c, { floorY: CONTACT.floor, ceilY: CONTACT.ceil });
     this.cubeRig.root.position.x = CONTACT.x;
     this.cubeRig.onLand = (loops) => this.emit('cube-land', loops);
+    this.cubeRig.onPass = () => this.emit('cube-pass');
     this.scene.add(this.cubeRig.root);
 
     // compile everything once so the first scroll does not hitch
@@ -199,8 +200,7 @@ export class World {
     const lh = size * 0.86;
     const top = (H - lh * 2) / 2 + size * 0.78;
     lines.forEach((l, i) => {
-      const w = ctx.measureText(l).width;
-      ctx.fillText(l, (W - w) / 2, top + i * lh);
+      ctx.fillText(l, 0, top + i * lh);
     });
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -229,7 +229,7 @@ export class World {
     const camEnd = portrait ? [0.4, Y.contact - 1.0, 9.4] : [0.6, Y.contact, 7];
     const lookEnd = portrait ? [0.4, Y.contact - 2.65, 0] : [1.2, Y.contact - 0.5, 0];
     this.anchors = [
-      { at: 0, cam: [0, Y.hero, 6.2], look: [0, Y.hero, 0], w: portrait ? [0, 0.42, 5.2, 0.5] : [0, 0.02, 5.2, 0.62] },
+      { at: 0, cam: [0, Y.hero, 6.2], look: [0, Y.hero, 0], w: portrait ? [0, 0.42, 5.2, 0.5] : [0.56, -0.04, 5.2, 0.6] },
       { at: top(st) * 0.9, cam: [0, Y.statement + 0.4, 6.6], look: [0, Y.statement, 0], w: [-0.62 * wx, 0.55, 6.4, 0.55] },
       { at: portalAt - vh * 0.35, cam: [0, Y.portal, 4.4], look: [0, Y.portal, -2.2], w: [-0.62 * wx, 0.55, 6.4, 0.55] },
       { at: portalAt, cam: [0, Y.portal, -1.65], look: [0, Y.portal, -6], w: [-0.62 * wx, 0.55, 6.4, 0.55], into: true },
@@ -242,7 +242,9 @@ export class World {
       { at: max, cam: camEnd, look: lookEnd, w: wEnd },
     ];
     if (this.glados) {
-      this.glados.root.position.x = portrait ? 0.7 : 3.1;
+      // right third of the screen at her depth, whatever the window width
+      const halfW = Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * 8 * this.camera.aspect;
+      this.glados.root.position.x = portrait ? 0.7 : Math.min(3.1, halfW * 1.02);
       this.glados.root.scale.setScalar(portrait ? 0.62 : 1);
     }
     if (this.cubeRig) this.cubeRig.root.position.x = portrait ? 0.55 : CONTACT.x;
@@ -263,8 +265,12 @@ export class World {
       const d = 6.2 - this.title.position.z;
       const vw = 2 * d * Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * this.camera.aspect;
       const vhh = 2 * d * Math.tan(THREE.MathUtils.degToRad(FOV / 2));
-      const s = Math.min(vw * 0.94, vhh * 1.6);
+      // desktop: left-aligned in the gutter, Wheatley holds the right third; portrait: full width under him
+      const portrait = this.camera.aspect < 0.9;
+      const s = portrait ? Math.min(vw * 0.94, vhh * 1.6) : Math.min(vw * 0.66, vhh * 1.45);
       this.title.scale.set(s, s, 1);
+      const gutter = (Math.min(56, Math.max(16, w * 0.04)) / w) * vw;
+      this.titleBaseX = portrait ? 0 : -vw / 2 + gutter + s / 2;
     }
   }
 
@@ -375,7 +381,7 @@ export class World {
 
     // title follows the hero only
     if (this.title) {
-      this.title.position.x = -px * 0.12;
+      this.title.position.x = (this.titleBaseX || 0) - px * 0.12;
       this.titleMat.opacity = 1 - clamp01(scrollY / (window.innerHeight * 0.9));
       this.title.visible = this.titleMat.opacity > 0.001;
     }

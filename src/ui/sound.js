@@ -1,12 +1,11 @@
-// Tiny Web Audio kit. Off by default; one switch in the header.
+// The whole soundscape, synthesized in Web Audio. Always on; browsers still wait for the first click.
 export function createSound() {
   let ctx = null;
   let master = null;
-  let on = false;
+  const on = true;
   let servo = null;
   let voice = null;
   const buffers = new Map();
-  try { on = localStorage.getItem('eraxty:sound') === '1'; } catch { /* storage blocked */ }
 
   const ensure = () => {
     if (!ctx) {
@@ -22,6 +21,36 @@ export function createSound() {
   };
 
   let engine = null;
+  let amb = null;
+  let servoPan = null;
+  let wheatPan = 0;
+
+  const noiseBuffer = (seconds, brown = false) => {
+    const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * seconds), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < d.length; i++) {
+      const w = Math.random() * 2 - 1;
+      if (brown) { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; } else d[i] = w;
+    }
+    return buf;
+  };
+  const loopNoise = (buf) => {
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.start();
+    return src;
+  };
+  // per-section mood: room cutoff, mains hum, air handling, GLaDOS undertone
+  const MOODS = {
+    hero: { lp: 240, hum: 50, air: 0.05, dark: 0 },
+    statement: { lp: 320, hum: 55, air: 0.06, dark: 0 },
+    work: { lp: 360, hum: 60, air: 0.07, dark: 0 },
+    lab: { lp: 280, hum: 55, air: 0.05, dark: 0 },
+    subject: { lp: 150, hum: 41, air: 0.025, dark: 1 },
+    contact: { lp: 220, hum: 50, air: 0.035, dark: 0 },
+  };
 
   const api = {
     get on() { return on; },
@@ -95,11 +124,143 @@ export function createSound() {
       }, 4500);
       engine = null;
     },
-    set(v) {
-      on = v;
-      try { localStorage.setItem('eraxty:sound', v ? '1' : '0'); } catch { /* ignore */ }
-      if (v) ensure();
-      else { voice?.stop(); if (servo) servo.g.gain.value = 0; }
+    // Facility bed: brown-noise room tone, mains hum, vent air, plus channels the frame loop drives.
+    ambienceStart() {
+      if (amb || !ensure()) return;
+      const bus = ctx.createGain();
+      bus.gain.value = 0;
+      bus.connect(master);
+      const room = loopNoise(noiseBuffer(4, true));
+      const roomLp = ctx.createBiquadFilter();
+      roomLp.type = 'lowpass';
+      roomLp.frequency.value = 240;
+      const roomG = ctx.createGain();
+      roomG.gain.value = 1.4;
+      room.connect(roomLp).connect(roomG).connect(bus);
+
+      const hum = ctx.createOscillator();
+      hum.frequency.value = 50;
+      const hum2 = ctx.createOscillator();
+      hum2.frequency.value = 100;
+      const humG = ctx.createGain();
+      humG.gain.value = 0.16;
+      const hum2G = ctx.createGain();
+      hum2G.gain.value = 0.05;
+      hum.connect(humG).connect(bus);
+      hum2.connect(hum2G).connect(bus);
+      hum.start(); hum2.start();
+
+      const white = noiseBuffer(3);
+      const air = loopNoise(white);
+      const airBp = ctx.createBiquadFilter();
+      airBp.type = 'bandpass';
+      airBp.frequency.value = 1100;
+      airBp.Q.value = 0.6;
+      const airG = ctx.createGain();
+      airG.gain.value = 0.05;
+      air.connect(airBp).connect(airG).connect(bus);
+
+      // GLaDOS undertone: a low triangle with a slow, uneasy tremolo
+      const dark = ctx.createOscillator();
+      dark.type = 'triangle';
+      dark.frequency.value = 61.7;
+      const darkG = ctx.createGain();
+      darkG.gain.value = 0;
+      const trem = ctx.createOscillator();
+      trem.frequency.value = 0.21;
+      const tremG = ctx.createGain();
+      tremG.gain.value = 0;
+      trem.connect(tremG).connect(darkG.gain);
+      dark.connect(darkG).connect(bus);
+      dark.start(); trem.start();
+
+      // scroll wind
+      const wind = loopNoise(white);
+      const windBp = ctx.createBiquadFilter();
+      windBp.type = 'bandpass';
+      windBp.Q.value = 0.9;
+      windBp.frequency.value = 500;
+      const windG = ctx.createGain();
+      windG.gain.value = 0;
+      wind.connect(windBp).connect(windG).connect(master);
+
+      // the Lab car, far away down the straight
+      const car = ctx.createOscillator();
+      car.type = 'sawtooth';
+      const car2 = ctx.createOscillator();
+      car2.type = 'square';
+      const carLp = ctx.createBiquadFilter();
+      carLp.type = 'lowpass';
+      carLp.frequency.value = 900;
+      const carG = ctx.createGain();
+      carG.gain.value = 0;
+      car.connect(carLp); car2.connect(carLp);
+      carLp.connect(carG).connect(master);
+      car.start(); car2.start();
+
+      amb = { bus, roomLp, hum, hum2, airG, darkG, tremG, windBp, windG, car, car2, carLp, carG };
+      bus.gain.setTargetAtTime(1, ctx.currentTime, 1.2);
+    },
+    mood(name) {
+      if (!amb) return;
+      const m = MOODS[name] || MOODS.hero;
+      const t = ctx.currentTime;
+      amb.roomLp.frequency.setTargetAtTime(m.lp, t, 0.8);
+      amb.hum.frequency.setTargetAtTime(m.hum, t, 0.8);
+      amb.hum2.frequency.setTargetAtTime(m.hum * 2, t, 0.8);
+      amb.airG.gain.setTargetAtTime(m.air, t, 0.8);
+      amb.darkG.gain.setTargetAtTime(m.dark * 0.22, t, 1.5);
+      amb.tremG.gain.setTargetAtTime(m.dark * 0.12, t, 1.5);
+    },
+    // called every frame: scroll speed, the Lab car, and where Wheatley sits left to right
+    frame({ scrollVel = 0, carLive = false, carSpeed = 0, pan = 0 }) {
+      if (!amb || ctx.state !== 'running') return;
+      const t = ctx.currentTime;
+      const v = Math.min(Math.abs(scrollVel) / 4500, 1);
+      amb.windG.gain.setTargetAtTime(v * v * 0.9, t, 0.12);
+      amb.windBp.frequency.setTargetAtTime(350 + v * 1500, t, 0.12);
+      const f = 55 + carSpeed * 150;
+      amb.car.frequency.setTargetAtTime(f, t, 0.08);
+      amb.car2.frequency.setTargetAtTime(f * 0.5, t, 0.08);
+      amb.carLp.frequency.setTargetAtTime(500 + carSpeed * 1800, t, 0.08);
+      amb.carG.gain.setTargetAtTime(carLive ? 0.05 + carSpeed * 0.07 : 0, t, 0.3);
+      if (servoPan) servoPan.pan.setTargetAtTime(Math.max(-1, Math.min(1, pan)), t, 0.1);
+      wheatPan = pan;
+    },
+    // going through a portal: a pitched-down sweep with a ringing tail
+    portal(intensity = 1) {
+      if (!ensure() || ctx.state !== 'running') return;
+      const t = ctx.currentTime;
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(420, t);
+      o.frequency.exponentialRampToValueAtTime(48, t + 0.55);
+      const og = ctx.createGain();
+      og.gain.setValueAtTime(0.9 * intensity, t);
+      og.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+      const n = ctx.createBufferSource();
+      n.buffer = noiseBuffer(0.8);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 8;
+      bp.frequency.setValueAtTime(3200, t);
+      bp.frequency.exponentialRampToValueAtTime(180, t + 0.6);
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(1.4 * intensity, t);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+      const delay = ctx.createDelay();
+      delay.delayTime.value = 0.09;
+      const fb = ctx.createGain();
+      fb.gain.value = 0.45;
+      delay.connect(fb).connect(delay);
+      const out = ctx.createGain();
+      out.gain.value = 1;
+      o.connect(og).connect(out);
+      n.connect(bp).connect(ng).connect(out);
+      out.connect(master);
+      out.connect(delay).connect(master);
+      o.start(t); o.stop(t + 0.8);
+      n.start(t);
     },
     // Wheatley's eye motor: a filtered buzz whose level and pitch follow how fast the eye turns.
     servo(angVel) {
@@ -112,7 +273,8 @@ export function createSound() {
         f.Q.value = 6;
         const g = ctx.createGain();
         g.gain.value = 0;
-        o.connect(f).connect(g).connect(master);
+        servoPan = ctx.createStereoPanner();
+        o.connect(f).connect(g).connect(servoPan).connect(master);
         o.start();
         servo = { o, f, g };
       }
@@ -140,7 +302,7 @@ export function createSound() {
       src.start();
     },
     // Voice lines are pre-rendered files (tools/render-voices.py), so they play in every browser.
-    async speak(src) {
+    async speak(src, follow = false) {
       if (!on || !ensure()) return;
       try {
         if (!buffers.has(src)) buffers.set(src, fetch(src).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)));
@@ -151,7 +313,9 @@ export function createSound() {
         voice.buffer = buf;
         const g = ctx.createGain();
         g.gain.value = 4.5;   // the master bus is quiet for UI ticks; voices sit on top
-        voice.connect(g).connect(master);
+        const pan = ctx.createStereoPanner();
+        pan.pan.value = follow ? Math.max(-0.8, Math.min(0.8, wheatPan * 0.7)) : 0;
+        voice.connect(g).connect(pan).connect(master);
         voice.start();
       } catch { /* missing file or decode error: captions still show */ }
     },

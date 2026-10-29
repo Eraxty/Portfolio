@@ -44,12 +44,16 @@ export function createLoader(sound) {
       // grid: wait for the driver
       status.textContent = 'Grid ready';
       el.classList.add('ready');
-      const withSound = await new Promise((resolve) => {
-        go.querySelector('[data-sound="on"]').addEventListener('click', () => resolve(true), { once: true });
-        go.querySelector('[data-sound="off"]').addEventListener('click', () => resolve(false), { once: true });
+      go.querySelector('[data-sound="on"]').focus({ preventScroll: true });
+      // a click anywhere on the grid, or Enter / Space, starts the car
+      await new Promise((resolve) => {
+        const done = () => { el.removeEventListener('click', done); window.removeEventListener('keydown', onKey); resolve(); };
+        const onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); done(); } };
+        el.addEventListener('click', done);
+        window.addEventListener('keydown', onKey);
       });
-      sound.set(withSound);
-      if (withSound) await sound.unlock();
+      await sound.unlock();
+      sound.ambienceStart();
       el.classList.remove('ready');
       el.classList.add('sequence');
       status.textContent = 'Lights';
